@@ -1,7 +1,7 @@
-import { getSupabaseClient, getEscolaId, getLocalDateStr } from './supabaseClient';
+import { getSupabaseClient, getEscolaId, getLocalDateStr, fetchEscolaNome } from './supabaseClient';
 import { Aluno } from '../types';
 
-export { getEscolaId, getLocalDateStr };
+export { getEscolaId, getLocalDateStr, fetchEscolaNome };
 
 // ---------------------------------------------------------------------------
 // Tipos da camada administrativa

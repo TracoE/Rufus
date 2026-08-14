@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ShieldAlert, Database, ShieldCheck } from 'lucide-react';
+import { Calendar, ShieldAlert, Database, ShieldCheck, School } from 'lucide-react';
 import { SupabaseConfig } from '../types';
+import { fetchEscolaNome } from '../lib/supabaseClient';
 
 interface HeaderProps {
   dataAtualFormatada: string;
@@ -10,6 +11,7 @@ interface HeaderProps {
   onOpenApoiaModal: () => void;
   salaId?: string;
   totalFaltasHoje: number;
+  escolaId?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -18,8 +20,23 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSupabaseModal,
   onOpenApoiaModal,
   salaId = 'SALA 102',
-  totalFaltasHoje
+  totalFaltasHoje,
+  escolaId
 }) => {
+  const [escolaNome, setEscolaNome] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ativo = true;
+    if (escolaId) {
+      fetchEscolaNome(escolaId).then(nome => {
+        if (ativo) setEscolaNome(nome);
+      });
+    } else {
+      setEscolaNome(null);
+    }
+    return () => { ativo = false; };
+  }, [escolaId]);
+
   return (
     <header className="fixed top-0 left-0 w-full z-40 flex justify-between items-center px-6 md:px-10 h-[76px] bg-slate-900 text-white border-b border-slate-800 shadow-md">
       {/* Left: Classroom Identity */}
@@ -33,6 +50,12 @@ export const Header: React.FC<HeaderProps> = ({
         <div>
           <div className="text-[11px] text-slate-400 uppercase tracking-wider">Sistema de Frequência</div>
           <h1 className="font-bold text-lg md:text-xl text-white tracking-tight">Registros Unificado de Frequências</h1>
+          {escolaNome && (
+            <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
+              <School className="w-3.5 h-3.5" />
+              <span className="truncate max-w-[180px] md:max-w-[260px]">{escolaNome}</span>
+            </div>
+          )}
         </div>
       </div>
 

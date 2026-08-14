@@ -55,6 +55,25 @@ export function saveStoredEscolaId(escolaId: string) {
   }
 }
 
+// Busca o nome da escola na tabela `escolas` (partilhada com o JustificaE).
+// Retorna null quando o banco não está disponível; o chamador mostra fallback.
+export async function fetchEscolaNome(escolaId: string): Promise<string | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.from('escolas').select('nome').eq('id', escolaId).limit(1);
+    if (error) {
+      console.warn('Erro ao buscar nome da escola:', error.message);
+      return null;
+    }
+    const nome = data?.[0]?.nome;
+    return typeof nome === 'string' && nome.trim() ? nome.trim() : null;
+  } catch (err) {
+    console.warn('Falha ao buscar nome da escola:', err);
+    return null;
+  }
+}
+
 // Helper to get environment or custom saved credentials
 // A instalação pode ter credenciais próprias (configuradas na tela do aparelho).
 // Se não houver nada salvo, usa as variáveis de ambiente do build (Vercel).

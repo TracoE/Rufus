@@ -8,11 +8,12 @@ import {
   getLocalDateStr
 } from '../lib/adminClient';
 import { updateTurmaVisibilidade, testSupabaseConnection } from '../lib/supabaseClient';
+import { getAdminEscolaId, fetchEscolaNome } from '../lib/adminClient';
 import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
 import { RelatorioApoiaModal } from '../components/admin/RelatorioApoiaModal';
-import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X } from 'lucide-react';
+import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School } from 'lucide-react';
 
 type FiltroStatus = 'TODOS' | StatusKanban;
 
@@ -25,6 +26,9 @@ export const AdminDashboard: React.FC = () => {
 
   // Status da conexão Supabase (banner do painel)
   const [conn, setConn] = useState<SupabaseConfig | null>(null);
+
+  // Nome da escola em trabalho (vem da sessão do admin ou do aparelho)
+  const [escolaNome, setEscolaNome] = useState<string | null>(null);
 
   // Filtros
   const [mes, setMes] = useState(() => getLocalDateStr().slice(0, 7));
@@ -75,6 +79,13 @@ export const AdminDashboard: React.FC = () => {
     testSupabaseConnection().then(setConn);
   }, []);
 
+  useEffect(() => {
+    const escolaId = getAdminEscolaId();
+    if (escolaId) {
+      fetchEscolaNome(escolaId).then(nome => setEscolaNome(nome));
+    }
+  }, []);
+
   const conectado = conn?.isConnected === true;
   const adminOk = conectado && conn?.adminReady !== false;
 
@@ -115,6 +126,12 @@ export const AdminDashboard: React.FC = () => {
                     : 'Conectado ao kiosk, mas a camada Busca Ativa ainda não foi criada')
                   : 'Modo teste (sem banco) • configure o Supabase para produção'}
               </div>
+              {escolaNome && (
+                <div className="text-xs text-emerald-300 font-bold flex items-center gap-1.5 truncate">
+                  <School className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                  <span className="truncate">{escolaNome}</span>
+                </div>
+              )}
             </div>
           </div>
 

@@ -6,6 +6,7 @@ import {
   salvarOuAtualizarChamada,
   testSupabaseConnection,
   getLocalDateStr,
+  getEscolaId,
   REQUIRE_DATABASE
 } from './lib/supabaseClient';
 import { Header } from './components/Header';
@@ -195,6 +196,7 @@ export default function App() {
         onOpenApoiaModal={() => setIsApoiaModalOpen(true)}
         salaId="SALA 102"
         totalFaltasHoje={totalFaltasHoje}
+        escolaId={getEscolaId()}
       />
 
       {/* Main Screen View Navigation */}
