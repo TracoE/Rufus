@@ -31,17 +31,16 @@ export function getLocalDateStr(d: Date = new Date()): string {
 }
 
 // ID da escola usada pelo kiosk: localStorage > env > padrão
-// Em produção, prioriza o valor configurado no ambiente (Vercel) para não ficar preso a um ID antigo do navegador.
+// A escola é definida na instalação (tela de configuração do aparelho).
+// Se o aparelho não tiver escola configurada, usa VITE_ESCOLA_ID do build.
 export function getEscolaId(): string {
-  const envEscola = import.meta.env.VITE_ESCOLA_ID || '';
-  if (import.meta.env.PROD && envEscola) return envEscola;
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_ESCOLA);
     if (saved && saved.trim()) return saved.trim();
   } catch (e) {
     console.warn('Erro ao ler escola do localStorage', e);
   }
-  return envEscola || DEFAULT_ESCOLA_ID;
+  return import.meta.env.VITE_ESCOLA_ID || DEFAULT_ESCOLA_ID;
 }
 
 export function saveStoredEscolaId(escolaId: string) {
@@ -57,16 +56,11 @@ export function saveStoredEscolaId(escolaId: string) {
 }
 
 // Helper to get environment or custom saved credentials
+// A instalação pode ter credenciais próprias (configuradas na tela do aparelho).
+// Se não houver nada salvo, usa as variáveis de ambiente do build (Vercel).
 export function getStoredCredentials(): { url: string; key: string } {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-  const envValido = !!(envUrl && envKey && !envUrl.includes('your-project') && !envKey.includes('your-anon-key'));
-
-  // Em produção, as credenciais oficiais vêm das variáveis de ambiente (Vercel).
-  // Credenciais salvas manualmente no dispositivo são usadas apenas quando não há env configurada ou fora de produção.
-  if (import.meta.env.PROD && envValido) {
-    return { url: envUrl, key: envKey };
-  }
 
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_CREDENTIALS);
