@@ -254,9 +254,14 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       <footer className="px-5 md:px-8 pb-5 text-center text-[11px] text-slate-500">
-        <span className="inline-flex items-center gap-1.5">
-          <img src="/icone.svg" alt="" className="w-3.5 h-3.5 inline-block object-contain" onError={e => { e.currentTarget.style.display = 'none'; }} />
-          RUFUS — Sistema de Frequência & Programa APOIA • Painel Administrativo
+        <span className="inline-flex items-center gap-1.5 justify-center">
+          <img
+            src="/rufus.png"
+            alt="RUFUS"
+            className="w-4 h-4 inline-block object-contain"
+            onError={e => { e.currentTarget.style.display = 'none'; }}
+          />
+          Sistema de Frequência & Programa APOIA • Painel Administrativo
         </span>
       </footer>
 

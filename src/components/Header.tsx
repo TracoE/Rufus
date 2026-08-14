@@ -23,19 +23,15 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="fixed top-0 left-0 w-full z-40 flex justify-between items-center px-6 md:px-10 h-[76px] bg-slate-900 text-white border-b border-slate-800 shadow-md">
       {/* Left: Classroom Identity */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center overflow-hidden">
-          <img src="/icone.svg" alt="RUFUS" className="w-8 h-8 object-contain" onError={e => { e.currentTarget.style.display = 'none'; }} />
-        </div>
+        <img
+          src="/rufus.png"
+          alt="RUFUS"
+          className="w-10 h-10 md:w-11 md:h-11 object-contain"
+          onError={e => { e.currentTarget.style.display = 'none'; }}
+        />
         <div>
-          <div className="flex items-center gap-2">
-            <span className="bg-emerald-500/20 text-emerald-300 text-xs px-2.5 py-0.5 rounded-full font-semibold uppercase tracking-wider">
-              RUFUS
-            </span>
-            <span className="text-slate-400 text-xs">| Sistema de Frequência</span>
-          </div>
-          <h1 className="font-bold text-lg md:text-xl text-white tracking-tight flex items-center gap-2">
-            RUFUS <span className="text-slate-400 font-normal text-sm md:text-base">— Registros Unificado de Frequências</span>
-          </h1>
+          <div className="text-[11px] text-slate-400 uppercase tracking-wider">Sistema de Frequência</div>
+          <h1 className="font-bold text-lg md:text-xl text-white tracking-tight">Registros Unificado de Frequências</h1>
         </div>
       </div>
 
