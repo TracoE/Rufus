@@ -7,7 +7,8 @@ import {
   StatusKanban,
   getLocalDateStr
 } from '../lib/adminClient';
-import { updateTurmaVisibilidade } from '../lib/supabaseClient';
+import { updateTurmaVisibilidade, testSupabaseConnection } from '../lib/supabaseClient';
+import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
 import { RelatorioApoiaModal } from '../components/admin/RelatorioApoiaModal';
@@ -21,6 +22,9 @@ export const AdminDashboard: React.FC = () => {
   const [data, setData] = useState<DadosKanban | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Status da conexão Supabase (banner do painel)
+  const [conn, setConn] = useState<SupabaseConfig | null>(null);
 
   // Filtros
   const [mes, setMes] = useState(() => getLocalDateStr().slice(0, 7));
@@ -67,6 +71,13 @@ export const AdminDashboard: React.FC = () => {
     carregar(mes);
   }, [mes, carregar]);
 
+  useEffect(() => {
+    testSupabaseConnection().then(setConn);
+  }, []);
+
+  const conectado = conn?.isConnected === true;
+  const adminOk = conectado && conn?.adminReady !== false;
+
   const dataHoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   // Aplica filtros
@@ -91,8 +102,13 @@ export const AdminDashboard: React.FC = () => {
                 PAINEL ADMINISTRATIVO
                 <span className="bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase hidden sm:inline">Busca Ativa APOIA</span>
               </div>
-              <div className="text-[11px] text-slate-400 truncate">
-                Acesso administrativo (sem login) • modo teste
+              <div className="text-[11px] text-slate-400 truncate flex items-center gap-1.5">
+                <span className={`inline-block w-2 h-2 rounded-full shrink-0 ${conectado ? (adminOk ? 'bg-emerald-400' : 'bg-amber-400') : 'bg-slate-500'}`} />
+                {conectado
+                  ? (adminOk
+                    ? 'Conectado ao Supabase • Painel ativo'
+                    : 'Conectado ao kiosk, mas a camada Busca Ativa ainda não foi criada')
+                  : 'Modo teste (sem banco) • configure o Supabase para produção'}
               </div>
             </div>
           </div>
@@ -199,6 +215,28 @@ export const AdminDashboard: React.FC = () => {
 
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm font-semibold text-red-700">{error}</div>
+        )}
+
+        {conectado && !adminOk && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900">
+            <p className="font-bold mb-1">⚠️ Tabelas da Busca Ativa não encontradas no banco</p>
+            <p className="text-xs opacity-90">
+              O kiosk está conectado, mas a tabela <code className="font-mono">busca_ativa_registros</code> (e a camada administrativa)
+              não existe neste projeto. Até criá-la, o painel mostrará os alunos e faltas, porém <strong>não será possível salvar
+              registros de contato</strong> (botão "APOIA" no Dossiê). Rode o script <em>"Administrativo / Busca Ativa"</em> no
+              SQL Editor do Supabase e atualize a página.
+            </p>
+          </div>
+        )}
+
+        {!conectado && (
+          <div className="mb-4 p-4 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-700">
+            <p className="font-bold mb-1">⚡ Modo teste — sem conexão com o banco</p>
+            <p className="text-xs opacity-90">
+              O painel não está conectado ao Supabase. Os dados exibidos abaixo podem estar desatualizados ou indisponíveis até que
+              as credenciais sejam configuradas no modal de configuração do terminal.
+            </p>
+          </div>
         )}
 
         {loading ? (
