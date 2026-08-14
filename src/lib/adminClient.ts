@@ -65,6 +65,7 @@ export interface SessaoAdmin {
   nome: string;
   senha_padrao: boolean;
   escola_id?: string;
+  is_super?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -106,17 +107,43 @@ export async function loginAdmin(email: string, senha: string): Promise<SessaoAd
   const { data, error } = await client.rpc('rufus_validar_login', { p_email: email, p_senha: senha });
   if (error) throw new Error(`Erro de conexão: ${error.message}. Execute o script SQL da camada administrativa.`);
 
-  const r = (data || {}) as { ok: boolean; msg?: string; nome?: string; email?: string; escola_id?: string; senha_padrao?: boolean };
+  const r = (data || {}) as { ok: boolean; msg?: string; nome?: string; email?: string; escola_id?: string; senha_padrao?: boolean; is_super?: boolean };
   if (!r.ok) throw new Error(r.msg || 'Falha no login.');
 
   const sessao: SessaoAdmin = {
     email: r.email || email,
     nome: r.nome || r.email || 'Administrador',
     senha_padrao: !!r.senha_padrao,
-    escola_id: r.escola_id
+    escola_id: r.escola_id,
+    is_super: !!r.is_super
   };
   localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessao));
   return sessao;
+}
+
+// Cria uma nova escola + primeiro admin. Apenas o superusuário logado consegue.
+export async function criarEscola(p: {
+  emailSuper: string;
+  senhaSuper: string;
+  nomeEscola: string;
+  emailAdmin: string;
+  nomeAdmin?: string;
+}): Promise<{ escola_id?: string; msg?: string }> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não configurado.');
+
+  const { data, error } = await client.rpc('rufus_criar_escola', {
+    p_email_super: p.emailSuper,
+    p_senha_super: p.senhaSuper,
+    p_nome_escola: p.nomeEscola,
+    p_email_admin: p.emailAdmin,
+    p_nome_admin: p.nomeAdmin || null
+  });
+  if (error) throw new Error(`Erro de conexão: ${error.message}`);
+
+  const r = (data || {}) as { ok: boolean; msg?: string; escola_id?: string };
+  if (!r.ok) throw new Error(r.msg || 'Não foi possível criar a escola.');
+  return { escola_id: r.escola_id, msg: r.msg };
 }
 
 export async function alterarSenhaAdmin(email: string, senhaAtual: string, novaSenha: string): Promise<string> {

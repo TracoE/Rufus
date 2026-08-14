@@ -40,6 +40,21 @@ CREATE TABLE IF NOT EXISTS rufus_admin (
 ALTER TABLE rufus_admin ADD COLUMN IF NOT EXISTS escola_id UUID REFERENCES escolas(id) ON DELETE CASCADE;
 ALTER TABLE rufus_admin DROP CONSTRAINT IF EXISTS rufus_admin_email_key;
 
+-- SuperusuÃ¡rio: pode criar escolas pelo painel (is_super = true; sem escola fixa)
+ALTER TABLE rufus_admin ADD COLUMN IF NOT EXISTS is_super BOOLEAN NOT NULL DEFAULT false;
+-- Unicidade do e-mail entre superusuÃ¡rios (escola_id Ã© NULL para eles, entÃ£o a UNIQUE (email, escola_id)
+-- nÃ£o colide). Sem isso, rodar o script de novo duplicaria o superusuÃ¡rio.
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes
+    WHERE tablename = 'rufus_admin' AND indexname = 'rufus_admin_super_email_unique'
+  ) THEN
+    CREATE UNIQUE INDEX rufus_admin_super_email_unique ON rufus_admin (email) WHERE is_super = true;
+  END IF;
+END
+$do$;
+
 -- Garante a unicidade (email, escola_id) â€” mesmo email pode existir em escolas diferentes.
 -- NecessÃ¡rio para o ON CONFLICT abaixo e para a associaÃ§Ã£o admin â†’ escola.
 DO $do$
@@ -71,6 +86,16 @@ INSERT INTO rufus_admin (email, nome, senha_hash, escola_id) VALUES (
   'ada36312-3d8c-4e26-a94d-baf3fe120418'
 ) ON CONFLICT (email, escola_id) DO NOTHING;
 
+-- SuperusuÃ¡rio RUFUS (cria escolas no painel). NÃ£o pertence a uma escola especÃ­fica.
+INSERT INTO rufus_admin (email, nome, senha_hash, is_super)
+VALUES (
+  'traco.e.sc@gmail.com',
+  'SuperusuÃ¡rio RUFUS',
+  crypt('675245', gen_salt('bf')),
+  true
+)
+ON CONFLICT (email) WHERE is_super = true DO NOTHING;
+
 CREATE OR REPLACE FUNCTION rufus_validar_login(p_email TEXT, p_senha TEXT)
 RETURNS JSONB
 LANGUAGE plpgsql SECURITY DEFINER
@@ -88,10 +113,68 @@ BEGIN
       'nome', adm.nome,
       'email', adm.email,
       'escola_id', adm.escola_id,
+      'is_super', adm.is_super,
       'senha_padrao', (adm.senha_hash = crypt('000000', adm.senha_hash))
     );
   END IF;
   RETURN jsonb_build_object('ok', false, 'msg', 'Senha incorreta. Tente novamente.');
+END;
+$$;
+
+-- Cria uma nova escola + seu primeiro administrador. SOMENTE o superusuÃ¡rio executa.
+-- Retorna o id da escola criada para o painel.
+CREATE OR REPLACE FUNCTION rufus_criar_escola(
+  p_email_super TEXT,
+  p_senha_super TEXT,
+  p_nome_escola TEXT,
+  p_email_admin TEXT,
+  p_nome_admin TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER
+AS $$
+DECLARE
+  sup rufus_admin%ROWTYPE;
+  v_escola_id UUID;
+BEGIN
+  -- 1. Valida o superusuÃ¡rio (email + senha)
+  SELECT * INTO sup FROM rufus_admin
+  WHERE lower(email) = lower(p_email_super) AND is_super = true;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('ok', false, 'msg', 'Apenas o superusuÃ¡rio pode criar escolas.');
+  END IF;
+  IF sup.senha_hash <> crypt(p_senha_super, sup.senha_hash) THEN
+    RETURN jsonb_build_object('ok', false, 'msg', 'Senha do superusuÃ¡rio incorreta.');
+  END IF;
+
+  -- 2. Valida campos
+  IF length(coalesce(p_nome_escola, '')) < 3 THEN
+    RETURN jsonb_build_object('ok', false, 'msg', 'Informe o nome da escola (mÃ­nimo 3 caracteres).');
+  END IF;
+  IF p_email_admin IS NULL OR position('@' in p_email_admin) = 0 THEN
+    RETURN jsonb_build_object('ok', false, 'msg', 'Informe o e-mail do administrador da escola.');
+  END IF;
+
+  -- 3. Cria a escola (tabela partilhada com o JustificaE)
+  INSERT INTO escolas (nome, email_admin, data_corte_atestados)
+  VALUES (p_nome_escola, lower(p_email_admin), CURRENT_DATE)
+  RETURNING id INTO v_escola_id;
+
+  -- 4. Cria o primeiro administrador da escola (senha inicial 000000 â€” troca no 1Âº acesso)
+  INSERT INTO rufus_admin (email, nome, senha_hash, escola_id)
+  VALUES (
+    lower(p_email_admin),
+    coalesce(p_nome_admin, p_nome_escola),
+    crypt('000000', gen_salt('bf')),
+    v_escola_id
+  )
+  ON CONFLICT (email, escola_id) DO NOTHING;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'msg', 'Escola criada com sucesso.',
+    'escola_id', v_escola_id
+  );
 END;
 $$;
 

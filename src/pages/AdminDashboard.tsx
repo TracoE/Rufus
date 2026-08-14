@@ -5,7 +5,9 @@ import {
   DadosKanban,
   DadosKanbanAluno,
   StatusKanban,
-  getLocalDateStr
+  getLocalDateStr,
+  getAdminSession,
+  SessaoAdmin
 } from '../lib/adminClient';
 import { updateTurmaVisibilidade, testSupabaseConnection } from '../lib/supabaseClient';
 import { getAdminEscolaId, fetchEscolaNome } from '../lib/adminClient';
@@ -13,7 +15,8 @@ import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
 import { RelatorioApoiaModal } from '../components/admin/RelatorioApoiaModal';
-import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School } from 'lucide-react';
+import { NovaEscolaModal } from '../components/admin/NovaEscolaModal';
+import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, PlusCircle } from 'lucide-react';
 
 type FiltroStatus = 'TODOS' | StatusKanban;
 
@@ -23,6 +26,9 @@ export const AdminDashboard: React.FC = () => {
   const [data, setData] = useState<DadosKanban | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Sessão do administrador logado (vazia quando acessar direto pela URL)
+  const [sessao] = useState<SessaoAdmin | null>(() => getAdminSession());
 
   // Status da conexão Supabase (banner do painel)
   const [conn, setConn] = useState<SupabaseConfig | null>(null);
@@ -40,6 +46,7 @@ export const AdminDashboard: React.FC = () => {
   const [dossieCard, setDossieCard] = useState<DadosKanbanAluno | null>(null);
   const [relatorioCard, setRelatorioCard] = useState<DadosKanbanAluno | null>(null);
   const [configAberta, setConfigAberta] = useState(false);
+  const [novaEscolaAberta, setNovaEscolaAberta] = useState(false);
 
   // Toggle visibilidade de turmas no painel de chamadas
   const [salvandoTurma, setSalvandoTurma] = useState<string | null>(null);
@@ -76,8 +83,12 @@ export const AdminDashboard: React.FC = () => {
   }, [mes, carregar]);
 
   useEffect(() => {
+    if (!getAdminSession()) {
+      navigate('/admin/login', { replace: true });
+      return;
+    }
     testSupabaseConnection().then(setConn);
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const escolaId = getAdminEscolaId();
@@ -136,6 +147,16 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {sessao?.is_super && (
+              <button
+                onClick={() => setNovaEscolaAberta(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition-all cursor-pointer"
+                title="Criar nova escola + administrador"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Nova Escola
+              </button>
+            )}
             <button
               onClick={() => setConfigAberta(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all cursor-pointer"
@@ -351,6 +372,13 @@ export const AdminDashboard: React.FC = () => {
         mes={mes}
         onClose={() => setRelatorioCard(null)}
       />
+      {sessao?.is_super && (
+        <NovaEscolaModal
+          sessao={sessao}
+          isOpen={novaEscolaAberta}
+          onClose={() => setNovaEscolaAberta(false)}
+        />
+      )}
     </div>
   );
 };
