@@ -64,6 +64,7 @@ export interface SessaoAdmin {
   email: string;
   nome: string;
   senha_padrao: boolean;
+  escola_id?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -82,6 +83,14 @@ export function getAdminSession(): SessaoAdmin | null {
   return null;
 }
 
+// Escola de atuação do administrador: vem da sessão do login.
+// Fallback para a escola do dispositivo (getEscolaId) em instalações antigas.
+export function getAdminEscolaId(): string {
+  const sessao = getAdminSession();
+  if (sessao?.escola_id) return sessao.escola_id;
+  return getEscolaId();
+}
+
 export function logoutAdmin() {
   try {
     localStorage.removeItem(ADMIN_SESSION_KEY);
@@ -97,13 +106,14 @@ export async function loginAdmin(email: string, senha: string): Promise<SessaoAd
   const { data, error } = await client.rpc('rufus_validar_login', { p_email: email, p_senha: senha });
   if (error) throw new Error(`Erro de conexão: ${error.message}. Execute o script SQL da camada administrativa.`);
 
-  const r = (data || {}) as { ok: boolean; msg?: string; nome?: string; email?: string; senha_padrao?: boolean };
+  const r = (data || {}) as { ok: boolean; msg?: string; nome?: string; email?: string; escola_id?: string; senha_padrao?: boolean };
   if (!r.ok) throw new Error(r.msg || 'Falha no login.');
 
   const sessao: SessaoAdmin = {
     email: r.email || email,
     nome: r.nome || r.email || 'Administrador',
-    senha_padrao: !!r.senha_padrao
+    senha_padrao: !!r.senha_padrao,
+    escola_id: r.escola_id
   };
   localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessao));
   return sessao;
@@ -157,7 +167,7 @@ export interface DadosKanban {
 
 export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
   const client = getSupabaseClient();
-  const escolaId = getEscolaId();
+  const escolaId = getAdminEscolaId();
   if (!client) throw new Error('Supabase não configurado.');
 
   const [turmasRes, alunosRes, chamadasRes, atestadosRes, registrosRes, config] = await Promise.all([
@@ -279,7 +289,7 @@ function computeStatusKanban(
 
 export async function fetchDossie(alunoId: string, mes: string): Promise<DadosDossie> {
   const client = getSupabaseClient();
-  const escolaId = getEscolaId();
+  const escolaId = getAdminEscolaId();
   if (!client) throw new Error('Supabase não configurado.');
 
   const [alunoRes, turmasRes, chamadasRes, atestadosRes, registrosRes] = await Promise.all([

@@ -12,7 +12,7 @@ import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
 import { RelatorioApoiaModal } from '../components/admin/RelatorioApoiaModal';
-import { LogOut, Calendar, ShieldAlert, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X } from 'lucide-react';
+import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X } from 'lucide-react';
 
 type FiltroStatus = 'TODOS' | StatusKanban;
 
@@ -94,8 +94,13 @@ export const AdminDashboard: React.FC = () => {
       <header className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800 shadow-md">
         <div className="px-5 md:px-8 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 shrink-0">
-              <ShieldAlert className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-lg bg-slate-800 overflow-hidden flex items-center justify-center shrink-0">
+              <img
+                src="/rufus.png"
+                alt="RUFUS"
+                className="w-8 h-8 object-contain"
+                onError={e => { e.currentTarget.style.display = 'none'; }}
+              />
             </div>
             <div className="min-w-0">
               <div className="font-black tracking-tight flex items-center gap-2 text-sm md:text-base">
@@ -254,15 +259,7 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       <footer className="px-5 md:px-8 pb-5 text-center text-[11px] text-slate-500">
-        <span className="inline-flex items-center gap-1.5 justify-center">
-          <img
-            src="/rufus.png"
-            alt="RUFUS"
-            className="w-4 h-4 inline-block object-contain"
-            onError={e => { e.currentTarget.style.display = 'none'; }}
-          />
-          Sistema de Frequência & Programa APOIA • Painel Administrativo
-        </span>
+        Sistema de Frequência & Programa APOIA • Painel Administrativo
       </footer>
 
       {/* Modais */}

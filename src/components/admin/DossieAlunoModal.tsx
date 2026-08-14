@@ -10,7 +10,7 @@ import {
   StatusBuscaAtiva,
   TIPOS_CONTATO,
   STATUS_BUSCA_ATIVA,
-  getEscolaId
+  getAdminEscolaId
 } from '../../lib/adminClient';
 import { X, Loader2, CalendarX2, Paperclip, Save, Trash2, PhoneCall, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -67,7 +67,7 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
       const sessao = JSON.parse(localStorage.getItem('rufus_admin_session_v1') || '{}');
       await salvarRegistroBuscaAtiva({
         aluno_id: card.aluno.id,
-        escola_id: getEscolaId(),
+        escola_id: getAdminEscolaId(),
         tipo_contato: tipoContato,
         data_contato: dataContato,
         responsavel_contatado: responsavel || undefined,

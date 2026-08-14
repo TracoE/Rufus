@@ -26,23 +26,31 @@ DROP POLICY IF EXISTS "Kiosk leitura rufus_config" ON rufus_config;
 CREATE POLICY "Kiosk leitura rufus_config" ON rufus_config FOR SELECT USING (true);
 
 -- 2. LOGIN ADMINISTRATIVO SIMPLIFICADO (válido no servidor via SECURITY DEFINER)
+-- Cada escola possui seus próprios administradores (rufus_admin.escola_id).
 CREATE TABLE IF NOT EXISTS rufus_admin (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT UNIQUE NOT NULL,
+  email TEXT NOT NULL,
   nome TEXT,
   senha_hash TEXT NOT NULL,
-  criado_em TIMESTAMPTZ DEFAULT NOW()
+  escola_id UUID REFERENCES escolas(id) ON DELETE CASCADE,
+  criado_em TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT rufus_admin_email_escola_unique UNIQUE (email, escola_id)
 );
+
+-- Migração: adiciona escola_id caso a tabela já exista (instalação anterior)
+ALTER TABLE rufus_admin ADD COLUMN IF NOT EXISTS escola_id UUID REFERENCES escolas(id) ON DELETE CASCADE;
+ALTER TABLE rufus_admin DROP CONSTRAINT IF EXISTS rufus_admin_email_key;
 
 ALTER TABLE rufus_admin ENABLE ROW LEVEL SECURITY;
 -- Sem políticas diretas: o acesso é feito APENAS pelas funções abaixo (senha com hash, nunca exposta ao cliente)
 
--- Admin padrão da escola (senha inicial 000000 — solicitará troca no 1º acesso)
-INSERT INTO rufus_admin (email, nome, senha_hash) VALUES (
+-- Admin padrão da escola EEB Roland Harold Dornbusch (senha inicial 000000 — solicitará troca no 1º acesso)
+INSERT INTO rufus_admin (email, nome, senha_hash, escola_id) VALUES (
   'eebrhd@gmail.com',
   'Administração EEB Roland Harold Dornbusch',
-  crypt('000000', gen_salt('bf'))
-) ON CONFLICT (email) DO NOTHING;
+  crypt('000000', gen_salt('bf')),
+  'ada36312-3d8c-4e26-a94d-baf3fe120418'
+) ON CONFLICT (email, escola_id) DO NOTHING;
 
 CREATE OR REPLACE FUNCTION rufus_validar_login(p_email TEXT, p_senha TEXT)
 RETURNS JSONB
@@ -60,6 +68,7 @@ BEGIN
       'ok', true,
       'nome', adm.nome,
       'email', adm.email,
+      'escola_id', adm.escola_id,
       'senha_padrao', (adm.senha_hash = crypt('000000', adm.senha_hash))
     );
   END IF;
