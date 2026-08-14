@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calendar, ShieldAlert, Database } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Calendar, ShieldAlert, Database, ShieldCheck } from 'lucide-react';
 import { SupabaseConfig } from '../types';
 
 interface HeaderProps {
@@ -56,8 +57,14 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </button>
 
-        {/* Link para o Painel Administrativo — removido do terminal público
-            (acesso apenas via URL /admin/dashboard pela equipe pedagógica) */}
+        {/* Link para o Painel Administrativo (acesso pela equipe pedagógica) */}
+        <Link
+          to="/admin/login"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-800/70 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 transition-all cursor-pointer"
+          title="Painel Administrativo APOIA (Busca Ativa)"
+        >
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+        </Link>
 
         {/* Supabase Status Pill / Settings */}
         <button
