@@ -13,6 +13,17 @@ const LOCAL_STORAGE_KEY_ESCOLA = 'kiosk_apoia_escola_id_v1';
 // Escola padrão do kiosk RUFUS (tabela escolas do projeto compartilhado)
 const DEFAULT_ESCOLA_ID = 'ada36312-3d8c-4e26-a94d-baf3fe120418';
 
+// Em produção o aplicativo EXIGE o banco de dados (sem modo demo / sem fallback local).
+// Fora de produção (dev) o modo demo continua disponível para facilitar o desenvolvimento.
+export const REQUIRE_DATABASE = import.meta.env.PROD;
+
+// Erro claro e orientativo quando o banco não está disponível
+export function databaseError(detalhe?: string): Error {
+  const msg = 'O RUFUS precisa do banco de dados (Supabase) para funcionar neste ambiente. ' +
+    'Verifique se o projeto Supabase está configurado e se há conexão com a internet.';
+  return new Error(detalhe ? `${msg}\n${detalhe}` : msg);
+}
+
 // Retorna a data local no formato YYYY-MM-DD (evita bug de fuso do toISOString)
 export function getLocalDateStr(d: Date = new Date()): string {
   const offsetMin = d.getTimezoneOffset();
@@ -221,79 +232,87 @@ export async function fetchTurmasComStatus(dataChamadaDateStr?: string): Promise
         .from('turmas')
         .select('*')
         .eq('escola_id', escolaId);
+      if (errT) throw errT;
       // Exibe apenas turmas livres para o painel geral (campo mostrar_no_painel)
       const turmasVisiveis = (turmasDb || []).filter((t: Turma) => t.mostrar_no_painel !== false);
-      if (!errT && turmasVisiveis.length > 0) {
-        const turmaIds = turmasVisiveis.map((t: Turma) => t.id);
 
-        // Fetch chamadas rufus de hoje + contagem de alunos ativos por turma
-        const [chamadasRes, alunosRes] = await Promise.all([
-          client
-            .from('rufus_chamadas')
-            .select('*')
-            .eq('data_chamada', targetDate)
-            .in('turma_id', turmaIds),
-          client
-            .from('alunos')
-            .select('id, turma_id')
-            .eq('escola_id', escolaId)
-        ]);
-
-        const chamadasDb = chamadasRes.data || [];
-        const alunosDb = alunosRes.data || [];
-
-        // Fetch faltas das chamadas de hoje
-        const chamadaIdsToday = chamadasDb.map((c: { id: string }) => c.id);
-        let faltasDb: ChamadaFalta[] = [];
-        if (chamadaIdsToday.length > 0) {
-          const { data: fData } = await client
-            .from('rufus_chamada_faltas')
-            .select('*')
-            .in('chamada_id', chamadaIdsToday);
-          faltasDb = fData || [];
-        }
-
-        const result: TurmaComChamada[] = turmasVisiveis.map((t: Turma) => {
-          const cham = chamadasDb.find((c: { turma_id: string }) => c.turma_id === t.id);
-          const totalAlunos = alunosDb.filter(a => a.turma_id === t.id).length;
-
-          if (cham) {
-            const qtdFaltas = faltasDb.filter(f => f.chamada_id === cham.id).length;
-            const criadoEmDate = new Date(cham.criado_em);
-            const horarioFormated = criadoEmDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-            return {
-              id: t.id,
-              nome: t.nome,
-              escola_id: t.escola_id,
-              ano_letivo: t.ano_letivo,
-              total_alunos: totalAlunos || 0,
-              realizada: true,
-              chamada_id: cham.id,
-              horario_registro: horarioFormated,
-              qtd_faltantes: qtdFaltas
-            };
-          } else {
-            return {
-              id: t.id,
-              nome: t.nome,
-              escola_id: t.escola_id,
-              ano_letivo: t.ano_letivo,
-              total_alunos: totalAlunos || 0,
-              realizada: false,
-              qtd_faltantes: 0
-            };
-          }
-        });
-
-        return { data: result, isMock: false };
+      if (turmasVisiveis.length === 0) {
+        // Banco ok, mas nenhuma turma visível para esta escola
+        return { data: [], isMock: false };
       }
+
+      const turmaIds = turmasVisiveis.map((t: Turma) => t.id);
+
+      // Fetch chamadas rufus de hoje + contagem de alunos ativos por turma
+      const [chamadasRes, alunosRes] = await Promise.all([
+        client
+          .from('rufus_chamadas')
+          .select('*')
+          .eq('data_chamada', targetDate)
+          .in('turma_id', turmaIds),
+        client
+          .from('alunos')
+          .select('id, turma_id')
+          .eq('escola_id', escolaId)
+      ]);
+
+      const chamadasDb = chamadasRes.data || [];
+      const alunosDb = alunosRes.data || [];
+
+      // Fetch faltas das chamadas de hoje
+      const chamadaIdsToday = chamadasDb.map((c: { id: string }) => c.id);
+      let faltasDb: ChamadaFalta[] = [];
+      if (chamadaIdsToday.length > 0) {
+        const { data: fData } = await client
+          .from('rufus_chamada_faltas')
+          .select('*')
+          .in('chamada_id', chamadaIdsToday);
+        faltasDb = fData || [];
+      }
+
+      const result: TurmaComChamada[] = turmasVisiveis.map((t: Turma) => {
+        const cham = chamadasDb.find((c: { turma_id: string }) => c.turma_id === t.id);
+        const totalAlunos = alunosDb.filter(a => a.turma_id === t.id).length;
+
+        if (cham) {
+          const qtdFaltas = faltasDb.filter(f => f.chamada_id === cham.id).length;
+          const criadoEmDate = new Date(cham.criado_em);
+          const horarioFormated = criadoEmDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+          return {
+            id: t.id,
+            nome: t.nome,
+            escola_id: t.escola_id,
+            ano_letivo: t.ano_letivo,
+            total_alunos: totalAlunos || 0,
+            realizada: true,
+            chamada_id: cham.id,
+            horario_registro: horarioFormated,
+            qtd_faltantes: qtdFaltas
+          };
+        } else {
+          return {
+            id: t.id,
+            nome: t.nome,
+            escola_id: t.escola_id,
+            ano_letivo: t.ano_letivo,
+            total_alunos: totalAlunos || 0,
+            realizada: false,
+            qtd_faltantes: 0
+          };
+        }
+      });
+
+      return { data: result, isMock: false };
     } catch (err) {
+      if (REQUIRE_DATABASE) throw databaseError((err as Error).message);
       console.warn('Erro ao conectar com Supabase, usando local fallback:', err);
     }
+  } else if (REQUIRE_DATABASE) {
+    throw databaseError();
   }
 
-  // --- LOCAL FALLBACK ENGINE ---
+  // --- LOCAL FALLBACK ENGINE (apenas fora de produção) ---
   const { turmas, alunos, chamadas, faltas } = getLocalData();
   const turmasVisiveis = turmas.filter(t => t.mostrar_no_painel !== false);
   const chamadasToday = chamadas.filter(c => c.data_chamada === targetDate);
@@ -339,12 +358,13 @@ export async function fetchAlunosDaTurma(turmaId: string, dataChamadaDateStr?: s
   if (client) {
     try {
       // 1. Fetch alunos da turma (tabela existente)
-      const { data: alunosDb } = await client
+      const { data: alunosDb, error: errA } = await client
         .from('alunos')
         .select('*')
         .eq('turma_id', turmaId)
         .eq('escola_id', escolaId)
         .order('nome', { ascending: true });
+      if (errA) throw errA;
 
       if (alunosDb && alunosDb.length > 0) {
         // 2. Fetch chamada rufus de hoje se existir
@@ -382,12 +402,18 @@ export async function fetchAlunosDaTurma(turmaId: string, dataChamadaDateStr?: s
           chamadaId: cham?.id
         };
       }
+
+      // Banco ok, mas turma sem alunos
+      return { alunos: [], jaRealizada: false };
     } catch (err) {
+      if (REQUIRE_DATABASE) throw databaseError((err as Error).message);
       console.warn('Erro ao carregar alunos do Supabase, usando fallback local:', err);
     }
+  } else if (REQUIRE_DATABASE) {
+    throw databaseError();
   }
 
-  // --- LOCAL FALLBACK ---
+  // --- LOCAL FALLBACK (apenas fora de produção) ---
   const { alunos, chamadas, faltas } = getLocalData();
   const turmaAlunos = alunos
     .filter(a => a.turma_id === turmaId && a.ativo)
@@ -473,11 +499,14 @@ export async function salvarOuAtualizarChamada(
         message: 'Chamada registrada com sucesso no Supabase!'
       };
     } catch (err: any) {
+      if (REQUIRE_DATABASE) throw databaseError(err?.message);
       console.warn('Erro ao salvar no Supabase, caindo para fallback local:', err);
     }
+  } else if (REQUIRE_DATABASE) {
+    throw databaseError();
   }
 
-  // --- LOCAL FALLBACK persistence ---
+  // --- LOCAL FALLBACK persistence (apenas fora de produção) ---
   const { chamadas, faltas } = getLocalData();
   let existingIndex = chamadas.findIndex(c => c.turma_id === turmaId && c.data_chamada === dataChamada);
   let chamadaId: string;
@@ -533,6 +562,9 @@ export async function fetchRelatorioApoia(): Promise<ApoiaAlert[]> {
         client.from('alunos').select('id, nome, turma_id').eq('escola_id', escolaId),
         client.from('turmas').select('id, nome').eq('escola_id', escolaId)
       ]);
+      if (chamadasRes.error) throw chamadasRes.error;
+      if (alunosRes.error) throw alunosRes.error;
+      if (turmasRes.error) throw turmasRes.error;
 
       const chamadas = (chamadasRes.data || []).filter((c: { data_chamada: string }) =>
         c.data_chamada && c.data_chamada.slice(0, 7) === monthPrefix
@@ -573,8 +605,11 @@ export async function fetchRelatorioApoia(): Promise<ApoiaAlert[]> {
 
       return alerts.sort((x, y) => y.total_faltas_mes - x.total_faltas_mes);
     } catch (err) {
+      if (REQUIRE_DATABASE) throw databaseError((err as Error).message);
       console.warn('Erro ao gerar relatório APOIA no Supabase, usando fallback local:', err);
     }
+  } else if (REQUIRE_DATABASE) {
+    throw databaseError();
   }
 
   const { alunos, turmas, chamadas, faltas } = getLocalData();

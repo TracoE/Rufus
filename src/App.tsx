@@ -5,7 +5,8 @@ import {
   fetchAlunosDaTurma,
   salvarOuAtualizarChamada,
   testSupabaseConnection,
-  getLocalDateStr
+  getLocalDateStr,
+  REQUIRE_DATABASE
 } from './lib/supabaseClient';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
@@ -14,6 +15,7 @@ import { ModalConfirmacao } from './components/ModalConfirmacao';
 import { SupabaseModal } from './components/SupabaseModal';
 import { ApoiaReportModal } from './components/ApoiaReportModal';
 import { ToastNotification } from './components/ToastNotification';
+import { AlertTriangle } from 'lucide-react';
 
 export default function App() {
   // Navigation View State
@@ -45,6 +47,9 @@ export default function App() {
     isMock: true
   });
 
+  // Bloqueio de produção quando o banco está indisponível
+  const [dbError, setDbError] = useState<string | null>(null);
+
   // Toast Notification
   const [toast, setToast] = useState<{ message: string | null; type: 'success' | 'error' }>({
     message: null,
@@ -64,6 +69,11 @@ export default function App() {
   const loadSupabaseStatus = useCallback(async () => {
     const config = await testSupabaseConnection();
     setSupabaseConfig(config);
+    if (REQUIRE_DATABASE && !config.isConnected) {
+      setDbError('Não foi possível conectar ao banco de dados (Supabase). Configure as credenciais e verifique a conexão para usar o sistema.');
+    } else {
+      setDbError(null);
+    }
   }, []);
 
   // 2. Load Turmas Status for Today (TELA 1)
@@ -72,9 +82,13 @@ export default function App() {
     try {
       const { data } = await fetchTurmasComStatus(dataChamadaStr);
       setTurmas(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao carregar turmas:', err);
-      setToast({ message: 'Erro ao carregar turmas do banco de dados.', type: 'error' });
+      if (REQUIRE_DATABASE) {
+        setDbError(err?.message || 'Falha ao consultar o banco de dados (Supabase).');
+      } else {
+        setToast({ message: 'Erro ao carregar turmas do banco de dados.', type: 'error' });
+      }
     } finally {
       setLoadingTurmas(false);
     }
@@ -147,6 +161,32 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans selection:bg-emerald-500 selection:text-white">
+      {dbError ? (
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full border border-slate-200 p-8 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-4">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            <h1 className="text-xl font-black text-slate-900 mb-2">Sem conexão com o banco de dados</h1>
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">{dbError}</p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <button
+                onClick={() => setIsSupabaseModalOpen(true)}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-sm font-extrabold cursor-pointer transition-all"
+              >
+                Configurar Supabase
+              </button>
+              <button
+                onClick={() => { loadSupabaseStatus(); loadTurmas(); }}
+                className="px-5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-extrabold cursor-pointer transition-all"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Fixed Header */}
       <Header
         dataAtualFormatada={dataAtualFormatada}
@@ -188,6 +228,8 @@ export default function App() {
           onConfirm={handleConfirmSalvarChamada}
           isEdicao={isEdicao}
         />
+      )}
+        </>
       )}
 
       {/* Supabase Connection Config & SQL Script Modal */}
