@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginAdmin, alterarSenhaAdmin } from '../lib/adminClient';
 import { getAdminSession } from '../lib/adminClient';
-import { School, Lock, Mail, LogIn, KeyRound, ArrowLeft, Loader2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, LogIn, KeyRound, ArrowLeft, Loader2, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 export const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -69,8 +69,8 @@ export const AdminLogin: React.FC = () => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <School className="w-9 h-9" />
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center overflow-hidden">
+            <img src="/icone.svg" alt="RUFUS" className="w-11 h-11 object-contain" onError={e => { e.currentTarget.style.display = 'none'; }} />
           </div>
         </div>
 
@@ -81,7 +81,10 @@ export const AdminLogin: React.FC = () => {
               <ShieldCheck className="w-5 h-5 text-emerald-400" />
               Painel Administrativo APOIA
             </h1>
-            <p className="text-xs text-slate-400 mt-1">Controle de Busca Ativa e risco de evasão escolar — RUFUS</p>
+            <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5">
+              <img src="/icone.svg" alt="RUFUS" className="w-3.5 h-3.5 inline-block object-contain" onError={e => { e.currentTarget.style.display = 'none'; }} />
+              Controle de Busca Ativa e risco de evasão escolar — RUFUS
+            </p>
           </div>
 
           <div className="p-6 space-y-5">

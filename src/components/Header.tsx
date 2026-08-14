@@ -1,5 +1,5 @@
 import React from 'react';
-import { School, Calendar, ShieldAlert, Database, RefreshCw } from 'lucide-react';
+import { Calendar, ShieldAlert, Database } from 'lucide-react';
 import { SupabaseConfig } from '../types';
 
 interface HeaderProps {
@@ -23,8 +23,8 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="fixed top-0 left-0 w-full z-40 flex justify-between items-center px-6 md:px-10 h-[76px] bg-slate-900 text-white border-b border-slate-800 shadow-md">
       {/* Left: Classroom Identity */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-          <School className="w-6 h-6" />
+        <div className="w-10 h-10 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center overflow-hidden">
+          <img src="/icone.svg" alt="RUFUS" className="w-8 h-8 object-contain" onError={e => { e.currentTarget.style.display = 'none'; }} />
         </div>
         <div>
           <div className="flex items-center gap-2">
