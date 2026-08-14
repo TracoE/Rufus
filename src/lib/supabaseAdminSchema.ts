@@ -33,16 +33,35 @@ CREATE TABLE IF NOT EXISTS rufus_admin (
   nome TEXT,
   senha_hash TEXT NOT NULL,
   escola_id UUID REFERENCES escolas(id) ON DELETE CASCADE,
-  criado_em TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT rufus_admin_email_escola_unique UNIQUE (email, escola_id)
+  criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Migração: adiciona escola_id caso a tabela já exista (instalação anterior)
+-- Migração multi-escola: adiciona escola_id em instalações antigas
 ALTER TABLE rufus_admin ADD COLUMN IF NOT EXISTS escola_id UUID REFERENCES escolas(id) ON DELETE CASCADE;
 ALTER TABLE rufus_admin DROP CONSTRAINT IF EXISTS rufus_admin_email_key;
 
+-- Garante a unicidade (email, escola_id) — mesmo email pode existir em escolas diferentes.
+-- Necessário para o ON CONFLICT abaixo e para a associação admin → escola.
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'rufus_admin_email_escola_unique'
+      AND conrelid = 'rufus_admin'::regclass
+  ) THEN
+    ALTER TABLE rufus_admin
+      ADD CONSTRAINT rufus_admin_email_escola_unique UNIQUE (email, escola_id);
+  END IF;
+END
+$do$;
+
 ALTER TABLE rufus_admin ENABLE ROW LEVEL SECURITY;
 -- Sem políticas diretas: o acesso é feito APENAS pelas funções abaixo (senha com hash, nunca exposta ao cliente)
+
+-- Vincula o admin padrão à escola EEB Roland Harold Dornbusch (admins antigos sem escola)
+UPDATE rufus_admin
+SET escola_id = 'ada36312-3d8c-4e26-a94d-baf3fe120418'
+WHERE email = 'eebrhd@gmail.com' AND escola_id IS NULL;
 
 -- Admin padrão da escola EEB Roland Harold Dornbusch (senha inicial 000000 — solicitará troca no 1º acesso)
 INSERT INTO rufus_admin (email, nome, senha_hash, escola_id) VALUES (
