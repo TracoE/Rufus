@@ -1,0 +1,6 @@
+{
+  "name": "RUFUS - Registros Unificado de Frequências",
+  "description": "Sistema RUFUS para controle diário de frequência escolar e identificação automática de faltantes do programa APOIA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
