@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { loginGoogle, obterSessaoAdmin, assinarMudancaAuth, getAdminSession } from '../lib/adminClient';
+import { loginGoogle, obterSessaoAdmin, assinarMudancaAuth } from '../lib/adminClient';
 import { ArrowLeft, Loader2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { LogoRufus } from '../components/LogoRufus';
 
@@ -66,11 +66,6 @@ export const AdminLogin: React.FC = () => {
               <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                 <Loader2 className="w-6 h-6 animate-spin mb-3" />
                 <p className="text-sm font-semibold">Verificando sessão...</p>
-              </div>
-            ) : getAdminSession() ? (
-              <div className="flex flex-col items-center justify-center py-10 text-slate-400">
-                <Loader2 className="w-6 h-6 animate-spin mb-3" />
-                <p className="text-sm font-semibold">Entrando no painel...</p>
               </div>
             ) : (
               <>

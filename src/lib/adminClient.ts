@@ -76,6 +76,14 @@ export interface SessaoAdmin {
 
 const ADMIN_SESSION_KEY = 'rufus_admin_session_v2';
 
+function limparSessaoStorage() {
+  try {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+  } catch (e) {
+    console.warn('Erro ao limpar sessão admin', e);
+  }
+}
+
 export function getAdminSession(): SessaoAdmin | null {
   try {
     const raw = localStorage.getItem(ADMIN_SESSION_KEY);
@@ -208,8 +216,15 @@ export async function obterSessaoAdmin(): Promise<SessaoAdmin | null> {
   if (!client) return null;
   const { data } = await client.auth.getSession();
   const user = data.session?.user;
-  if (!user?.email) return null;
-  return montarSessao(client, user.email.toLowerCase());
+  if (!user?.email) {
+    limparSessaoStorage();
+    return null;
+  }
+  const sessao = await montarSessao(client, user.email.toLowerCase());
+  // Email autenticado mas sem permissão administrativa: limpa a sessão local
+  // para não ficar preso em "entrando no painel" (fix de sessão antiga).
+  if (!sessao) limparSessaoStorage();
+  return sessao;
 }
 
 // Assina mudanças de autenticação (retorno do OAuth, signOut). Retorna unsub.
@@ -219,13 +234,21 @@ export function assinarMudancaAuth(cb: (sessao: SessaoAdmin | null) => void): ((
   const { data } = client.auth.onAuthStateChange(async (event, session) => {
     if (session?.user?.email) {
       const sessao = await montarSessao(client, session.user.email.toLowerCase());
-      cb(sessao);
-    } else {
-      try {
-        localStorage.removeItem(ADMIN_SESSION_KEY);
-      } catch (e) {
-        console.warn(e);
+      if (sessao) {
+        cb(sessao);
+      } else {
+        // Conta Google sem permissão administrativa: encerra a sessão no Google
+        // e limpa o local para não travar na tela de entrada.
+        limparSessaoStorage();
+        try {
+          await client.auth.signOut();
+        } catch (e) {
+          console.warn(e);
+        }
+        cb(null);
       }
+    } else {
+      limparSessaoStorage();
       cb(null);
     }
   });
@@ -233,16 +256,12 @@ export function assinarMudancaAuth(cb: (sessao: SessaoAdmin | null) => void): ((
 }
 
 export async function logoutAdmin() {
-  try {
-    localStorage.removeItem(ADMIN_SESSION_KEY);
-  } catch (e) {
-    console.warn(e);
-  }
+  limparSessaoStorage();
   const client = getSupabaseClient();
   if (client) {
     try {
       await client.auth.signOut();
-} catch (e) {
+    } catch (e) {
       console.warn('Erro ao encerrar sessão Google', e);
     }
   }
