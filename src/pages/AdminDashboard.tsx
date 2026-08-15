@@ -12,7 +12,7 @@ import {
   SessaoAdmin
 } from '../lib/adminClient';
 import { updateTurmaVisibilidade, updateTurmaSegmento, testSupabaseConnection } from '../lib/supabaseClient';
-import { getAdminEscolaId, fetchEscolaNome, logoutAdmin } from '../lib/adminClient';
+import { getAdminEscolaId, fetchEscolaNome, logoutAdmin, fetchEscolas, setAdminEscolaId } from '../lib/adminClient';
 import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
@@ -38,6 +38,9 @@ export const AdminDashboard: React.FC = () => {
 
   // Nome da escola em trabalho (vem da sessão do admin ou do aparelho)
   const [escolaNome, setEscolaNome] = useState<string | null>(null);
+
+  // Lista de escolas para o seletor do superusuário
+  const [escolas, setEscolas] = useState<{ id: string; nome: string }[]>([]);
 
   // Filtros
   const [mes, setMes] = useState(() => getLocalDateStr().slice(0, 7));
@@ -126,7 +129,21 @@ export const AdminDashboard: React.FC = () => {
     if (escolaId) {
       fetchEscolaNome(escolaId).then(nome => setEscolaNome(nome));
     }
-  }, []);
+  }, [sessao?.escola_id]);
+
+  // Superusuário: carrega a lista de escolas para o seletor
+  useEffect(() => {
+    if (sessao?.is_super) {
+      fetchEscolas().then(lista => setEscolas(lista));
+    }
+  }, [sessao?.is_super]);
+
+  const trocarEscola = (escolaId: string) => {
+    setAdminEscolaId(escolaId);
+    setSessao(prev => prev ? { ...prev, escola_id: escolaId } : prev);
+    setEscolaNome(null);
+    carregar(mes);
+  };
 
   const conectado = conn?.isConnected === true;
   const adminOk = conectado && conn?.adminReady !== false;
@@ -198,6 +215,22 @@ export const AdminDashboard: React.FC = () => {
               <ArrowLeft className="w-4 h-4" />
               Terminal
             </button>
+            {sessao?.is_super && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700">
+                <School className="w-4 h-4 text-emerald-400 shrink-0" />
+                <select
+                  value={sessao.escola_id || ''}
+                  onChange={e => trocarEscola(e.target.value)}
+                  className="bg-transparent text-slate-200 text-xs font-bold outline-none cursor-pointer max-w-[180px]"
+                  title="Selecionar escola (superusuário)"
+                >
+                  <option value="">Selecione a escola...</option>
+                  {escolas.map(es => (
+                    <option key={es.id} value={es.id} className="text-slate-900">{es.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs font-semibold">
               <Calendar className="w-4 h-4 text-emerald-400" />
               <span className="capitalize">{dataHoje}</span>

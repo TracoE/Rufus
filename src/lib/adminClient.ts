@@ -64,6 +64,7 @@ export interface SessaoAdmin {
   email: string;
   nome: string;
   escola_id?: string;
+  is_super?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +94,32 @@ export function getAdminEscolaId(): string {
   return getEscolaId();
 }
 
+// Define/seleciona a escola de atuação do superusuário na sessão.
+export function setAdminEscolaId(escolaId: string) {
+  const sessao = getAdminSession();
+  if (!sessao) return;
+  sessao.escola_id = escolaId;
+  try {
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessao));
+  } catch (e) {
+    console.warn('Erro ao salvar escola na sessão', e);
+  }
+}
+
+// Lista escolas cadastradas (para o seletor do superusuário).
+export async function fetchEscolas(): Promise<{ id: string; nome: string }[]> {
+  const client = getSupabaseClient();
+  if (!client) return [];
+  try {
+    const { data, error } = await client.from('escolas').select('id, nome').order('nome');
+    if (error) return [];
+    return (data || []) as { id: string; nome: string }[];
+  } catch (e) {
+    console.warn('Falha ao listar escolas', e);
+    return [];
+  }
+}
+
 // Inicia o login com o Google (mesma autenticação do JustificaE).
 export async function loginGoogle(): Promise<void> {
   const client = getSupabaseClient();
@@ -109,44 +136,70 @@ export async function loginGoogle(): Promise<void> {
   if (error) throw new Error(`Erro ao iniciar login Google: ${error.message}`);
 }
 
-// Mapeia o e-mail autenticado para a escola cadastrada no JustificaE.
-// 1ª tentativa: professor ativo (conta criada pelo master JustificaE).
-// 2ª: admin de escola (escolas.email_admin).
-async function mapearEscolaDoEmail(client: any, email: string): Promise<{ escola_id: string; nome: string } | null> {
-  try {
-    const { data: profs } = await client
-      .from('professores')
-      .select('escola_id')
-      .or(`email.ilike.${email},email_google.ilike.${email}`)
-      .eq('ativo', true)
-      .limit(1);
-    const prof = profs?.[0];
-    if (prof?.escola_id) {
-      const esc = await client.from('escolas').select('nome').eq('id', prof.escola_id).limit(1);
-      return { escola_id: prof.escola_id, nome: esc.data?.[0]?.nome || '' };
+// Mapeia o e-mail autenticado (conta Google) para o acesso administrativo.
+// Regras:
+//   1. Superusuário (email master OU professor com is_superadmin): acessa o painel
+//      com o seletor de escolas (escola_id fica vazio).
+//   2. Administrador de escola: apenas o email cadastrado em escolas.email_admin
+//      (a mesma conta criada pelo superusuário no JustificaE).
+// Nenhum outro professor do JustificaE tem acesso ao painel RUFUS.
+async function montarSessao(client: any, email: string): Promise<SessaoAdmin | null> {
+  const ehMaster = email === 'traco.e.sc@gmail.com';
+
+  // Verifica se é superusuário (master ou professor is_superadmin)
+  let isSuper = ehMaster;
+  if (!isSuper) {
+    try {
+      const { data: profs } = await client
+        .from('professores')
+        .select('is_superadmin')
+        .or(`email.ilike.${email},email_google.ilike.${email}`)
+        .eq('ativo', true)
+        .limit(1);
+      isSuper = !!profs?.[0]?.is_superadmin;
+    } catch (e) {
+      // tabela sem email_google — trata como não-super
+      try {
+        const { data: profs } = await client
+          .from('professores')
+          .select('is_superadmin')
+          .ilike('email', email)
+          .eq('ativo', true)
+          .limit(1);
+        isSuper = !!profs?.[0]?.is_superadmin;
+      } catch (e2) {
+        console.warn('Falha na checagem de superusuário', e2);
+      }
     }
-  } catch (e) {
-    // tabela sem email_google — segue para o fallback
   }
 
+  if (isSuper) {
+    const sessao: SessaoAdmin = {
+      email,
+      nome: email.split('@')[0],
+      is_super: true
+    };
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessao));
+    return sessao;
+  }
+
+  // Administrador de escola: somente escolas.email_admin
   const { data: escs } = await client
     .from('escolas')
     .select('id, nome')
     .ilike('email_admin', email)
     .limit(1);
-  if (escs?.[0]) return { escola_id: escs[0].id, nome: escs[0].nome };
-  return null;
-}
+  if (escs?.[0]) {
+    const sessao: SessaoAdmin = {
+      email,
+      nome: escs[0].nome || email.split('@')[0],
+      escola_id: escs[0].id
+    };
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessao));
+    return sessao;
+  }
 
-async function montarSessao(client: any, email: string): Promise<SessaoAdmin | null> {
-  const mapa = await mapearEscolaDoEmail(client, email);
-  const sessao: SessaoAdmin = {
-    email,
-    nome: email.split('@')[0],
-    escola_id: mapa?.escola_id
-  };
-  localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessao));
-  return sessao;
+  return null;
 }
 
 // Restaura a sessão vinda do retorno do Google (e resolve a escola).
