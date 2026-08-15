@@ -192,13 +192,24 @@ export interface DadosKanban {
   turmas: { id: string; nome: string; mostrar_no_painel?: boolean; segmento?: string | null }[];
 }
 
+// Busca as turmas da escola. Se a coluna `segmento` ainda não existir no banco
+// (script administrativo desatualizado), repete a consulta sem ela para o painel
+// continuar funcionando normalmente.
+async function fetchTurmasPainel(client: any, escolaId: string): Promise<{ data: any[]; error: any }> {
+  const res = await client.from('turmas').select('id, nome, mostrar_no_painel, segmento').eq('escola_id', escolaId);
+  if (res.error) {
+    return client.from('turmas').select('id, nome, mostrar_no_painel').eq('escola_id', escolaId);
+  }
+  return res;
+}
+
 export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
   const client = getSupabaseClient();
   const escolaId = getAdminEscolaId();
   if (!client) throw new Error('Supabase não configurado.');
 
   const [turmasRes, alunosRes, chamadasRes, atestadosRes, registrosRes, config] = await Promise.all([
-    client.from('turmas').select('id, nome, mostrar_no_painel, segmento').eq('escola_id', escolaId),
+    fetchTurmasPainel(client, escolaId),
     client.from('alunos').select('*').eq('escola_id', escolaId),
     client.from('rufus_chamadas').select('*').eq('escola_id', escolaId),
     client.from('atestados').select('aluno_id, data_inicio, data_fim').eq('escola_id', escolaId),

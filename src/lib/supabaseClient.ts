@@ -302,8 +302,11 @@ export async function fetchTurmasComStatus(dataChamadaDateStr?: string): Promise
       // Exibe apenas turmas livres para o painel geral (campo mostrar_no_painel)
       let turmasVisiveis = (turmasDb || []).filter((t: Turma) => t.mostrar_no_painel !== false);
       // Se o terminal está fixo em um segmento, mostra apenas as turmas dele.
+      // Se nenhuma turma traz o campo `segmento`, a coluna ainda não existe no
+      // banco (script desatualizado): ignora o filtro para não esvaziar a tela.
       const segmento = getSegmento();
-      if (segmento) {
+      const temCampoSegmento = (turmasDb || []).some((t: Turma) => 'segmento' in t);
+      if (segmento && temCampoSegmento) {
         turmasVisiveis = turmasVisiveis.filter((t: Turma) => t.segmento === segmento);
       }
 
