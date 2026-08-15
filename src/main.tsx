@@ -4,10 +4,12 @@ import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom';
 import App from './App.tsx';
 import {AdminLogin} from './pages/AdminLogin.tsx';
 import {AdminDashboard} from './pages/AdminDashboard.tsx';
+import {ErrorBoundary} from './components/ErrorBoundary.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <ErrorBoundary>
     <BrowserRouter>
       <Routes>
         {/* Rotas públicas do Kiosk (sem login) */}
@@ -23,5 +25,6 @@ createRoot(document.getElementById('root')!).render(
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>,
 );

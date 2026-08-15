@@ -108,7 +108,8 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
     }
   };
 
-  const formatarData = (iso: string) => {
+  const formatarData = (iso?: string) => {
+    if (!iso) return '—';
     const [y, m, d] = iso.slice(0, 10).split('-');
     return `${d}/${m}/${y}`;
   };

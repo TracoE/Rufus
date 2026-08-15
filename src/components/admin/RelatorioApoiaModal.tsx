@@ -32,7 +32,8 @@ export const RelatorioApoiaModal: React.FC<RelatorioApoiaModalProps> = ({ isOpen
     setTimeout(() => document.body.classList.remove('rufus-printing'), 500);
   };
 
-  const formatarData = (iso: string) => {
+  const formatarData = (iso?: string) => {
+    if (!iso) return '—';
     const [y, m, d] = iso.slice(0, 10).split('-');
     return `${d}/${m}/${y}`;
   };
@@ -155,9 +156,9 @@ export const RelatorioApoiaModal: React.FC<RelatorioApoiaModalProps> = ({ isOpen
                       {dossie.registros.map(r => (
                         <tr key={r.id}>
                           <td className="border border-slate-300 p-2 font-bold">{formatarData(r.data_contato)}</td>
-                          <td className="border border-slate-300 p-2">{r.tipo_contato}</td>
+                          <td className="border border-slate-300 p-2">{r.tipo_contato || '—'}</td>
                           <td className="border border-slate-300 p-2">{r.responsavel_contatado || '—'}</td>
-                          <td className="border border-slate-300 p-2">{r.status.replace(/_/g, ' ')}</td>
+                          <td className="border border-slate-300 p-2">{(r.status || 'EM_ANDAMENTO').replace(/_/g, ' ')}</td>
                           <td className="border border-slate-300 p-2 text-xs">{r.observacoes || '—'}</td>
                         </tr>
                       ))}
