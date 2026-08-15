@@ -10,7 +10,8 @@ import {
   StatusBuscaAtiva,
   TIPOS_CONTATO,
   STATUS_BUSCA_ATIVA,
-  getAdminEscolaId
+  getAdminEscolaId,
+  getAdminSession
 } from '../../lib/adminClient';
 import { X, Loader2, CalendarX2, Paperclip, Save, Trash2, PhoneCall, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -81,7 +82,7 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
       if (anexo) {
         anexoUrl = await uploadAnexo(anexo, card.aluno.id);
       }
-      const sessao = JSON.parse(localStorage.getItem('rufus_admin_session_v1') || '{}');
+      const sessao = getAdminSession();
       await salvarRegistroBuscaAtiva({
         aluno_id: card.aluno.id,
         escola_id: getAdminEscolaId(),
@@ -91,7 +92,7 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
         observacoes: observacoes || undefined,
         anexo_url: anexoUrl,
         status: statusRegistro,
-        criado_por: sessao.nome || sessao.email || undefined
+        criado_por: sessao?.nome || sessao?.email || undefined
       });
 
       // Reset form

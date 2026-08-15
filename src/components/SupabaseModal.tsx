@@ -44,7 +44,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
 
     if (result.isConnected) {
       if (result.adminReady === false) {
-        setTestResult('⚠️ Conectado ao Supabase, porém a camada administrativa ainda não foi criada. Execute o script "Administrativo / Busca Ativa" no SQL Editor para habilitar o painel e os registros.');
+        setTestResult('⚠️ Conectado ao Supabase, porém a camada administrativa ainda não foi criada. Execute o script "Administrativo / Busca Ativa" no SQL Editor para habilitar o painel e os registros.');;
       } else {
         setTestResult('✅ Conexão estabelecida com sucesso! Tabelas verificadas no Supabase.');
       }
@@ -114,7 +114,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
                 {config.isConnected && config.adminReady !== false
                   ? 'Todas as chamadas e faltas estão sendo salvas em tempo real no seu banco de dados Supabase.'
                   : config.isConnected
-                    ? 'O kiosk está conectado, mas as tabelas administrativas (rufus_config, rufus_admin, busca_ativa_registros) não existem ainda. Rode o script "Administrativo / Busca Ativa" no SQL Editor para habilitar o Painel Administrativo.'
+                    ? 'O kiosk está conectado, mas as tabelas administrativas (rufus_config, busca_ativa_registros) não existem ainda. Rode o script "Administrativo / Busca Ativa" no SQL Editor para habilitar o Painel Administrativo.'
                     : 'O aplicativo funciona 100% de forma autônoma sem travar! Insira suas credenciais abaixo ou copie o script SQL para conectar ao seu banco de dados oficial do programa APOIA.'}
               </p>
             </div>

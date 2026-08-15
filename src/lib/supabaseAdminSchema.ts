@@ -10,6 +10,27 @@ export const ADMIN_SQL_SCRIPT = `-- ============================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- 0. AUTORIZAÇÃO DO PAINEL RUFUS — autoriza escrita de Busca Ativa/anexos apenas
+-- para e-mails com direito ao painel: admin de escola (escolas.email_admin),
+-- superusuário (traco.e.sc@gmail.com) ou professor is_superadmin = true.
+-- Não desligar disable_signup (quebraria 1º acesso Google de novos admins).
+CREATE OR REPLACE FUNCTION is_rufus_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM escolas e
+    WHERE e.email_admin = (auth.jwt() ->> 'email')
+  )
+  OR (auth.jwt() ->> 'email') = 'traco.e.sc@gmail.com'
+  OR EXISTS (
+    SELECT 1 FROM professores p
+    WHERE (p.email = (auth.jwt() ->> 'email') OR p.email_google = (auth.jwt() ->> 'email'))
+      AND p.is_superadmin = true
+  )
+$$;
+
 -- 1. REGRAS DE GATILHO DOS ALERTAS (thresholds configuráveis)
 CREATE TABLE IF NOT EXISTS rufus_config (
   chave TEXT PRIMARY KEY,
@@ -55,10 +76,21 @@ CREATE INDEX IF NOT EXISTS idx_busca_ativa_aluno ON busca_ativa_registros(aluno_
 CREATE INDEX IF NOT EXISTS idx_busca_ativa_escola ON busca_ativa_registros(escola_id);
 
 ALTER TABLE busca_ativa_registros ENABLE ROW LEVEL SECURITY;
+-- Leitura pública (kiosk usa SELECT id no teste de conexão);
+-- INSERT/UPDATE/DELETE apenas para e-mails autorizados (is_rufus_admin).
 DROP POLICY IF EXISTS "Kiosk total busca_ativa_registros" ON busca_ativa_registros;
-CREATE POLICY "Kiosk total busca_ativa_registros" ON busca_ativa_registros FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Rufus busca ativa select" ON busca_ativa_registros;
+DROP POLICY IF EXISTS "Rufus busca ativa insert" ON busca_ativa_registros;
+DROP POLICY IF EXISTS "Rufus busca ativa update" ON busca_ativa_registros;
+DROP POLICY IF EXISTS "Rufus busca ativa delete" ON busca_ativa_registros;
+CREATE POLICY "Rufus busca ativa select" ON busca_ativa_registros FOR SELECT USING (true);
+CREATE POLICY "Rufus busca ativa insert" ON busca_ativa_registros FOR INSERT WITH CHECK (is_rufus_admin());
+CREATE POLICY "Rufus busca ativa update" ON busca_ativa_registros FOR UPDATE USING (is_rufus_admin()) WITH CHECK (is_rufus_admin());
+CREATE POLICY "Rufus busca ativa delete" ON busca_ativa_registros FOR DELETE USING (is_rufus_admin());
 
--- 4. STORAGE: bucket público para os anexos da busca ativa (atestados, recibos, fotos)
+-- 4. STORAGE: bucket público para os anexos da busca ativa (atestados, recibos, fotos).
+-- Permanece público para garantir abertura dos anexos; escrita (upload/subst./delete)
+-- apenas para e-mails autorizados (is_rufus_admin).
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES ('busca_ativa_anexos', 'busca_ativa_anexos', true, 52428800, NULL)
 ON CONFLICT (id) DO NOTHING;
@@ -68,13 +100,13 @@ DROP POLICY IF EXISTS "Rufus anexos read" ON storage.objects;
 CREATE POLICY "Rufus anexos read" ON storage.objects FOR SELECT USING (bucket_id = 'busca_ativa_anexos');
 
 DROP POLICY IF EXISTS "Rufus anexos insert" ON storage.objects;
-CREATE POLICY "Rufus anexos insert" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'busca_ativa_anexos');
+CREATE POLICY "Rufus anexos insert" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'busca_ativa_anexos' AND is_rufus_admin());
 
 DROP POLICY IF EXISTS "Rufus anexos update" ON storage.objects;
-CREATE POLICY "Rufus anexos update" ON storage.objects FOR UPDATE USING (bucket_id = 'busca_ativa_anexos') WITH CHECK (bucket_id = 'busca_ativa_anexos');
+CREATE POLICY "Rufus anexos update" ON storage.objects FOR UPDATE USING (bucket_id = 'busca_ativa_anexos' AND is_rufus_admin()) WITH CHECK (bucket_id = 'busca_ativa_anexos' AND is_rufus_admin());
 
 DROP POLICY IF EXISTS "Rufus anexos delete" ON storage.objects;
-CREATE POLICY "Rufus anexos delete" ON storage.objects FOR DELETE USING (bucket_id = 'busca_ativa_anexos');
+CREATE POLICY "Rufus anexos delete" ON storage.objects FOR DELETE USING (bucket_id = 'busca_ativa_anexos' AND is_rufus_admin());
 
 -- 5. SEGMENTO (GRUPO) DAS TURMAS — usado pelos terminais fixos e filtro do painel.
 -- Rótulo livre definido pela escola (ex.: 'EF', 'F2', 'Medio'). Terminal vazio = mostra todas.
