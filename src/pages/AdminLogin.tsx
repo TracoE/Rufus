@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { loginAdmin, alterarSenhaAdmin } from '../lib/adminClient';
 import { getAdminSession } from '../lib/adminClient';
 import { Lock, Mail, LogIn, KeyRound, ArrowLeft, Loader2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { LogoRufus } from '../components/LogoRufus';
 
 export const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -64,12 +65,7 @@ export const AdminLogin: React.FC = () => {
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-6">
-          <img
-            src="/rufus.png"
-            alt="RUFUS"
-            className="w-20 h-20 object-contain"
-            onError={e => { e.currentTarget.style.display = 'none'; }}
-          />
+          <LogoRufus height={72} />
         </div>
 
         <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">

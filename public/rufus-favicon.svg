@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="12" fill="#0F172A" />
+  <text x="6" y="46" font-family="Arial, sans-serif" font-weight="bold" font-size="36" fill="#FFFFFF">Rufus</text>
+  <g transform="translate(41, 2)">
+    <circle cx="11" cy="11" r="9" fill="none" stroke="#007BFF" stroke-width="3" />
+    <text x="11" y="16" font-family="Arial, sans-serif" font-weight="bold" font-size="14" fill="#007BFF" text-anchor="middle">-e</text>
+  </g>
+</svg>

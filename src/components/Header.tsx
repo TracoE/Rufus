@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Sparkles, ShieldCheck, School } from 'lucide-react';
+import { LogoRufus } from './LogoRufus';
 import { fetchEscolaNome, getSegmento } from '../lib/supabaseClient';
 
 interface HeaderProps {
@@ -35,12 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="fixed top-0 left-0 w-full z-40 flex justify-between items-center px-6 md:px-10 h-[76px] bg-slate-900 text-white border-b border-slate-800 shadow-md">
       {/* Left: Classroom Identity */}
       <div className="flex items-center gap-3">
-        <img
-          src="/rufus.png"
-          alt="RUFUS"
-          className="w-10 h-10 md:w-11 md:h-11 object-contain"
-          onError={e => { e.currentTarget.style.display = 'none'; }}
-        />
+        <LogoRufus height={46} />
         <div>
           <div className="text-[11px] text-slate-400 uppercase tracking-wider">Sistema de Frequência</div>
           <h1 className="font-bold text-lg md:text-xl text-white tracking-tight">Registros Unificado de Frequências</h1>
