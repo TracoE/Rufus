@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ShieldAlert, Sparkles, ShieldCheck, School } from 'lucide-react';
+import { Calendar, Sparkles, ShieldCheck, School } from 'lucide-react';
 import { SupabaseConfig } from '../types';
 import { fetchEscolaNome, getSegmento } from '../lib/supabaseClient';
 
@@ -8,9 +8,7 @@ interface HeaderProps {
   dataAtualFormatada: string;
   supabaseConfig: SupabaseConfig;
   onOpenSegmentoModal: () => void;
-  onOpenApoiaModal: () => void;
   salaId?: string;
-  totalFaltasHoje: number;
   escolaId?: string;
 }
 
@@ -18,9 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   dataAtualFormatada,
   supabaseConfig,
   onOpenSegmentoModal,
-  onOpenApoiaModal,
   salaId = 'SALA 102',
-  totalFaltasHoje,
   escolaId
 }) => {
   const [escolaNome, setEscolaNome] = useState<string | null>(null);
@@ -66,21 +62,8 @@ export const Header: React.FC<HeaderProps> = ({
         <span className="capitalize">{dataAtualFormatada}</span>
       </div>
 
-      {/* Right: APOIA Program Badge & Database Connection Status */}
+      {/* Right: School Identity & Segment Selector */}
       <div className="flex items-center gap-3">
-        {/* APOIA Alert Button */}
-        <button
-          onClick={onOpenApoiaModal}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-red-950/60 hover:bg-red-900/80 text-red-200 border border-red-800/60 transition-all cursor-pointer"
-          title="Ver Relatório de Faltas APOIA"
-        >
-          <ShieldAlert className="w-5 h-5 text-red-400 animate-pulse" />
-          <div className="text-left hidden sm:block">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-red-300">Programa APOIA</div>
-            <div className="text-xs font-semibold">{totalFaltasHoje} Faltas Hoje</div>
-          </div>
-        </button>
-
         {/* Link para o Painel Administrativo (acesso pela equipe pedagógica) */}
         <Link
           to="/admin/login"

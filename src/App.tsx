@@ -14,7 +14,6 @@ import { Dashboard } from './components/Dashboard';
 import { GridFaltantes } from './components/GridFaltantes';
 import { ModalConfirmacao } from './components/ModalConfirmacao';
 import { SegmentoModal } from './components/SegmentoModal';
-import { ApoiaReportModal } from './components/ApoiaReportModal';
 import { ToastNotification } from './components/ToastNotification';
 import { AlertTriangle } from 'lucide-react';
 
@@ -34,7 +33,6 @@ export default function App() {
   // Modal States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
   const [isSegmentoModalOpen, setIsSegmentoModalOpen] = useState<boolean>(false);
-  const [isApoiaModalOpen, setIsApoiaModalOpen] = useState<boolean>(false);
 
   // Faltantes for confirmation modal
   const [faltantesParaConfirmar, setFaltantesParaConfirmar] = useState<AlunoComFalta[]>([]);
@@ -157,9 +155,6 @@ export default function App() {
     }
   };
 
-  // Calculate total missing students today across all recorded classes
-  const totalFaltasHoje = turmas.reduce((acc, t) => acc + (t.qtd_faltantes || 0), 0);
-
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans selection:bg-emerald-500 selection:text-white">
       {dbError ? (
@@ -193,9 +188,7 @@ export default function App() {
         dataAtualFormatada={dataAtualFormatada}
         supabaseConfig={supabaseConfig}
         onOpenSegmentoModal={() => setIsSegmentoModalOpen(true)}
-        onOpenApoiaModal={() => setIsApoiaModalOpen(true)}
         salaId="SALA 102"
-        totalFaltasHoje={totalFaltasHoje}
         escolaId={getEscolaId()}
       />
 
@@ -242,12 +235,6 @@ export default function App() {
           loadSupabaseStatus();
           loadTurmas();
         }}
-      />
-
-      {/* APOIA Program Absenteeism Report Modal */}
-      <ApoiaReportModal
-        isOpen={isApoiaModalOpen}
-        onClose={() => setIsApoiaModalOpen(false)}
       />
 
       {/* Toast Feedback */}
