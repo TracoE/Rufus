@@ -16,7 +16,8 @@ import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
 import { RelatorioApoiaModal } from '../components/admin/RelatorioApoiaModal';
 import { NovaEscolaModal } from '../components/admin/NovaEscolaModal';
-import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, PlusCircle, Sparkles } from 'lucide-react';
+import { SupabaseModal } from '../components/SupabaseModal';
+import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, PlusCircle, Sparkles, Database } from 'lucide-react';
 
 type FiltroStatus = 'TODOS' | StatusKanban;
 
@@ -48,6 +49,7 @@ export const AdminDashboard: React.FC = () => {
   const [relatorioCard, setRelatorioCard] = useState<DadosKanbanAluno | null>(null);
   const [configAberta, setConfigAberta] = useState(false);
   const [novaEscolaAberta, setNovaEscolaAberta] = useState(false);
+  const [supabaseConfigAberta, setSupabaseConfigAberta] = useState(false);
 
   // Toggle visibilidade de turmas no painel de chamadas
   const [salvandoTurma, setSalvandoTurma] = useState<string | null>(null);
@@ -183,6 +185,14 @@ export const AdminDashboard: React.FC = () => {
             >
               <Settings className="w-4 h-4" />
               Configurações
+            </button>
+            <button
+              onClick={() => setSupabaseConfigAberta(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all cursor-pointer"
+              title="Configuração da integração Supabase (credenciais e scripts SQL)"
+            >
+              <Database className="w-4 h-4" />
+              Supabase
             </button>
             <button
               onClick={() => navigate('/')}
@@ -437,6 +447,16 @@ export const AdminDashboard: React.FC = () => {
           onClose={() => setNovaEscolaAberta(false)}
         />
       )}
+
+      <SupabaseModal
+        isOpen={supabaseConfigAberta}
+        config={conn || { url: '', key: '', isConnected: false, isMock: true }}
+        onClose={() => setSupabaseConfigAberta(false)}
+        onConfigChanged={() => {
+          testSupabaseConnection().then(setConn);
+          carregar(mes);
+        }}
+      />
     </div>
   );
 };

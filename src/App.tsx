@@ -13,7 +13,7 @@ import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { GridFaltantes } from './components/GridFaltantes';
 import { ModalConfirmacao } from './components/ModalConfirmacao';
-import { SupabaseModal } from './components/SupabaseModal';
+import { SegmentoModal } from './components/SegmentoModal';
 import { ApoiaReportModal } from './components/ApoiaReportModal';
 import { ToastNotification } from './components/ToastNotification';
 import { AlertTriangle } from 'lucide-react';
@@ -33,7 +33,7 @@ export default function App() {
 
   // Modal States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
-  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState<boolean>(false);
+  const [isSegmentoModalOpen, setIsSegmentoModalOpen] = useState<boolean>(false);
   const [isApoiaModalOpen, setIsApoiaModalOpen] = useState<boolean>(false);
 
   // Faltantes for confirmation modal
@@ -171,12 +171,12 @@ export default function App() {
             <h1 className="text-xl font-black text-slate-900 mb-2">Sem conexão com o banco de dados</h1>
             <p className="text-sm text-slate-600 leading-relaxed mb-6">{dbError}</p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
-              <button
-                onClick={() => setIsSupabaseModalOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-sm font-extrabold cursor-pointer transition-all"
+              <a
+                href="/admin/login"
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-700 text-white text-sm font-extrabold cursor-pointer transition-all text-center"
               >
-                Configurar Supabase
-              </button>
+                Configurar (Painel Administrativo)
+              </a>
               <button
                 onClick={() => { loadSupabaseStatus(); loadTurmas(); }}
                 className="px-5 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-extrabold cursor-pointer transition-all"
@@ -192,7 +192,7 @@ export default function App() {
       <Header
         dataAtualFormatada={dataAtualFormatada}
         supabaseConfig={supabaseConfig}
-        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        onOpenSegmentoModal={() => setIsSegmentoModalOpen(true)}
         onOpenApoiaModal={() => setIsApoiaModalOpen(true)}
         salaId="SALA 102"
         totalFaltasHoje={totalFaltasHoje}
@@ -234,12 +234,11 @@ export default function App() {
         </>
       )}
 
-      {/* Supabase Connection Config & SQL Script Modal */}
-      <SupabaseModal
-        isOpen={isSupabaseModalOpen}
-        config={supabaseConfig}
-        onClose={() => setIsSupabaseModalOpen(false)}
-        onConfigChanged={() => {
+      {/* Seletor de segmento deste terminal (apenas isso — sem acesso à configuração completa) */}
+      <SegmentoModal
+        isOpen={isSegmentoModalOpen}
+        onClose={() => setIsSegmentoModalOpen(false)}
+        onSaved={() => {
           loadSupabaseStatus();
           loadTurmas();
         }}

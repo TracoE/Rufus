@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, ShieldAlert, Database, ShieldCheck, School } from 'lucide-react';
+import { Calendar, ShieldAlert, Sparkles, ShieldCheck, School } from 'lucide-react';
 import { SupabaseConfig } from '../types';
-import { fetchEscolaNome } from '../lib/supabaseClient';
+import { fetchEscolaNome, getSegmento } from '../lib/supabaseClient';
 
 interface HeaderProps {
   dataAtualFormatada: string;
   supabaseConfig: SupabaseConfig;
-  onOpenSupabaseModal: () => void;
+  onOpenSegmentoModal: () => void;
   onOpenApoiaModal: () => void;
   salaId?: string;
   totalFaltasHoje: number;
@@ -17,13 +17,14 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   dataAtualFormatada,
   supabaseConfig,
-  onOpenSupabaseModal,
+  onOpenSegmentoModal,
   onOpenApoiaModal,
   salaId = 'SALA 102',
   totalFaltasHoje,
   escolaId
 }) => {
   const [escolaNome, setEscolaNome] = useState<string | null>(null);
+  const [segmento, setSegmento] = useState(() => getSegmento());
 
   useEffect(() => {
     let ativo = true;
@@ -89,19 +90,19 @@ export const Header: React.FC<HeaderProps> = ({
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
         </Link>
 
-        {/* Supabase Status Pill / Settings */}
+        {/* Seletor de Segmento do Terminal (F1, F2, M...) */}
         <button
-          onClick={onOpenSupabaseModal}
+          onClick={() => { setSegmento(getSegmento()); onOpenSegmentoModal(); }}
           className={`flex items-center gap-2 px-3.5 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-            supabaseConfig.isConnected
-              ? 'bg-emerald-950/60 hover:bg-emerald-900/80 text-emerald-300 border-emerald-700/60'
-              : 'bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 border-amber-700/60'
+            segmento
+              ? 'bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-200 border-indigo-700/60'
+              : 'bg-slate-800/70 hover:bg-slate-700/80 text-slate-200 border-slate-700/60'
           }`}
-          title="Clique para configurar o Supabase"
+          title="Definir quais turmas este terminal exibe (segmento)"
         >
-          <Database className="w-4 h-4" />
+          <Sparkles className="w-4 h-4" />
           <span className="hidden md:inline">
-            {supabaseConfig.isConnected ? 'Supabase Conectado' : 'Modo Standalone (Local)'}
+            {segmento ? `Segmento: ${segmento}` : 'Todos os segmentos'}
           </span>
           <span className={`w-2.5 h-2.5 rounded-full ${supabaseConfig.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
         </button>
