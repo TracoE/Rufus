@@ -36,10 +36,11 @@ AS $$
 $$;
 
 -- -------------------------------------------------------
--- 1. BUSCA ATIVA: escrita/delete só para e-mails autorizados.
---    Leitura segue pública — só o kiosk lê (SELECT id) no testSupabaseConnection.
---    (Protege contra DELETE anônimo 204 encontrado na auditoria e contra
---     qualquer Google account registrada aleatoriamente.)
+-- 1. BUSCA ATIVA (DOSSIE): leitura, escrita e delete exigem e-mails autorizados.
+--    A tabela não é mais lida publicamente — o kiosk detecta a camada admin
+--    via rufus_config, não via dossiê.
+--    (Protege contra DELETE anônimo 204 e contra leitura dos dossiês por
+--     qualquer pessoa com a chave anon.)
 -- -------------------------------------------------------
 ALTER TABLE busca_ativa_registros ENABLE ROW LEVEL SECURITY;
 
@@ -50,7 +51,7 @@ DROP POLICY IF EXISTS "Rufus busca ativa update" ON busca_ativa_registros;
 DROP POLICY IF EXISTS "Rufus busca ativa delete" ON busca_ativa_registros;
 
 CREATE POLICY "Rufus busca ativa select" ON busca_ativa_registros
-  FOR SELECT USING (true);
+  FOR SELECT USING (is_rufus_admin());
 
 CREATE POLICY "Rufus busca ativa insert" ON busca_ativa_registros
   FOR INSERT WITH CHECK (is_rufus_admin());

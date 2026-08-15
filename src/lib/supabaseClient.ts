@@ -210,7 +210,9 @@ export async function testSupabaseConnection(): Promise<SupabaseConfig> {
       return { url, key, isConnected: false, isMock: true };
     }
     // Camada administrativa (Busca Ativa / APOIA)
-    const { error: errAdmin } = await client.from('busca_ativa_registros').select('id').limit(1);
+    // Usa rufus_config (leitura pública) para detectar a camada; o dossiê
+    // (busca_ativa_registros) tem leitura restrita a admins logados.
+    const { error: errAdmin } = await client.from('rufus_config').select('chave').limit(1);
     const adminReady = !errAdmin;
     if (errAdmin) {
       console.warn('Tabelas administrativas ainda não criadas (Busca Ativa):', errAdmin.message);

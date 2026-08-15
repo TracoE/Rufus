@@ -76,14 +76,14 @@ CREATE INDEX IF NOT EXISTS idx_busca_ativa_aluno ON busca_ativa_registros(aluno_
 CREATE INDEX IF NOT EXISTS idx_busca_ativa_escola ON busca_ativa_registros(escola_id);
 
 ALTER TABLE busca_ativa_registros ENABLE ROW LEVEL SECURITY;
--- Leitura pública (kiosk usa SELECT id no teste de conexão);
--- INSERT/UPDATE/DELETE apenas para e-mails autorizados (is_rufus_admin).
+-- Dossiê protegido: leitura, escrita e delete apenas para e-mails autorizados
+-- (is_rufus_admin). O kiosk detecta a camada admin via rufus_config.
 DROP POLICY IF EXISTS "Kiosk total busca_ativa_registros" ON busca_ativa_registros;
 DROP POLICY IF EXISTS "Rufus busca ativa select" ON busca_ativa_registros;
 DROP POLICY IF EXISTS "Rufus busca ativa insert" ON busca_ativa_registros;
 DROP POLICY IF EXISTS "Rufus busca ativa update" ON busca_ativa_registros;
 DROP POLICY IF EXISTS "Rufus busca ativa delete" ON busca_ativa_registros;
-CREATE POLICY "Rufus busca ativa select" ON busca_ativa_registros FOR SELECT USING (true);
+CREATE POLICY "Rufus busca ativa select" ON busca_ativa_registros FOR SELECT USING (is_rufus_admin());
 CREATE POLICY "Rufus busca ativa insert" ON busca_ativa_registros FOR INSERT WITH CHECK (is_rufus_admin());
 CREATE POLICY "Rufus busca ativa update" ON busca_ativa_registros FOR UPDATE USING (is_rufus_admin()) WITH CHECK (is_rufus_admin());
 CREATE POLICY "Rufus busca ativa delete" ON busca_ativa_registros FOR DELETE USING (is_rufus_admin());
