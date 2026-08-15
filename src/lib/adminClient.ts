@@ -63,16 +63,17 @@ export interface DadosDossie {
 export interface SessaoAdmin {
   email: string;
   nome: string;
-  senha_padrao: boolean;
   escola_id?: string;
-  is_super?: boolean;
 }
 
 // ---------------------------------------------------------------------------
-// Sessão de login administrativo (validada no servidor via SECURITY DEFINER)
+// Sessão administrativa — login com conta Google (Supabase Auth compartilhado
+// com o JustificaE). A escola de atuação é resolvida pelas tabelas do
+// JustificaE: professores (email/email_google) ou escolas.email_admin.
+// RUFUS não possui senha própria nem criação de escola.
 // ---------------------------------------------------------------------------
 
-const ADMIN_SESSION_KEY = 'rufus_admin_session_v1';
+const ADMIN_SESSION_KEY = 'rufus_admin_session_v2';
 
 export function getAdminSession(): SessaoAdmin | null {
   try {
@@ -92,74 +93,106 @@ export function getAdminEscolaId(): string {
   return getEscolaId();
 }
 
-export function logoutAdmin() {
-  try {
-    localStorage.removeItem(ADMIN_SESSION_KEY);
-  } catch (e) {
-    console.warn(e);
-  }
+// Inicia o login com o Google (mesma autenticação do JustificaE).
+export async function loginGoogle(): Promise<void> {
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não configurado. Verifique as credenciais.');
+
+  const currentUrl = window.location.origin + window.location.pathname;
+  const { error } = await client.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: currentUrl,
+      queryParams: { access_type: 'offline', prompt: 'select_account' }
+    }
+  });
+  if (error) throw new Error(`Erro ao iniciar login Google: ${error.message}`);
 }
 
-export async function loginAdmin(email: string, senha: string): Promise<SessaoAdmin> {
-  const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase não configurado. Verifique as credenciais no modal de configuração.');
+// Mapeia o e-mail autenticado para a escola cadastrada no JustificaE.
+// 1ª tentativa: professor ativo (conta criada pelo master JustificaE).
+// 2ª: admin de escola (escolas.email_admin).
+async function mapearEscolaDoEmail(client: any, email: string): Promise<{ escola_id: string; nome: string } | null> {
+  try {
+    const { data: profs } = await client
+      .from('professores')
+      .select('escola_id')
+      .or(`email.ilike.${email},email_google.ilike.${email}`)
+      .eq('ativo', true)
+      .limit(1);
+    const prof = profs?.[0];
+    if (prof?.escola_id) {
+      const esc = await client.from('escolas').select('nome').eq('id', prof.escola_id).limit(1);
+      return { escola_id: prof.escola_id, nome: esc.data?.[0]?.nome || '' };
+    }
+  } catch (e) {
+    // tabela sem email_google — segue para o fallback
+  }
 
-  const { data, error } = await client.rpc('rufus_validar_login', { p_email: email, p_senha: senha });
-  if (error) throw new Error(`Erro de conexão: ${error.message}. Execute o script SQL da camada administrativa.`);
+  const { data: escs } = await client
+    .from('escolas')
+    .select('id, nome')
+    .ilike('email_admin', email)
+    .limit(1);
+  if (escs?.[0]) return { escola_id: escs[0].id, nome: escs[0].nome };
+  return null;
+}
 
-  const r = (data || {}) as { ok: boolean; msg?: string; nome?: string; email?: string; escola_id?: string; senha_padrao?: boolean; is_super?: boolean };
-  if (!r.ok) throw new Error(r.msg || 'Falha no login.');
-
+async function montarSessao(client: any, email: string): Promise<SessaoAdmin | null> {
+  const mapa = await mapearEscolaDoEmail(client, email);
   const sessao: SessaoAdmin = {
-    email: r.email || email,
-    nome: r.nome || r.email || 'Administrador',
-    senha_padrao: !!r.senha_padrao,
-    escola_id: r.escola_id,
-    is_super: !!r.is_super
+    email,
+    nome: email.split('@')[0],
+    escola_id: mapa?.escola_id
   };
   localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(sessao));
   return sessao;
 }
 
-// Cria uma nova escola + primeiro admin. Apenas o superusuário logado consegue.
-export async function criarEscola(p: {
-  emailSuper: string;
-  senhaSuper: string;
-  nomeEscola: string;
-  emailAdmin: string;
-  nomeAdmin?: string;
-}): Promise<{ escola_id?: string; msg?: string }> {
+// Restaura a sessão vinda do retorno do Google (e resolve a escola).
+export async function obterSessaoAdmin(): Promise<SessaoAdmin | null> {
   const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase não configurado.');
-
-  const { data, error } = await client.rpc('rufus_criar_escola', {
-    p_email_super: p.emailSuper,
-    p_senha_super: p.senhaSuper,
-    p_nome_escola: p.nomeEscola,
-    p_email_admin: p.emailAdmin,
-    p_nome_admin: p.nomeAdmin || null
-  });
-  if (error) throw new Error(`Erro de conexão: ${error.message}`);
-
-  const r = (data || {}) as { ok: boolean; msg?: string; escola_id?: string };
-  if (!r.ok) throw new Error(r.msg || 'Não foi possível criar a escola.');
-  return { escola_id: r.escola_id, msg: r.msg };
+  if (!client) return null;
+  const { data } = await client.auth.getSession();
+  const user = data.session?.user;
+  if (!user?.email) return null;
+  return montarSessao(client, user.email.toLowerCase());
 }
 
-export async function alterarSenhaAdmin(email: string, senhaAtual: string, novaSenha: string): Promise<string> {
+// Assina mudanças de autenticação (retorno do OAuth, signOut). Retorna unsub.
+export function assinarMudancaAuth(cb: (sessao: SessaoAdmin | null) => void): (() => void) | null {
   const client = getSupabaseClient();
-  if (!client) throw new Error('Supabase não configurado.');
-
-  const { data, error } = await client.rpc('rufus_alterar_senha', {
-    p_email: email,
-    p_senha_atual: senhaAtual,
-    p_nova_senha: novaSenha
+  if (!client) return null;
+  const { data } = client.auth.onAuthStateChange(async (event, session) => {
+    if (session?.user?.email) {
+      const sessao = await montarSessao(client, session.user.email.toLowerCase());
+      cb(sessao);
+    } else {
+      try {
+        localStorage.removeItem(ADMIN_SESSION_KEY);
+      } catch (e) {
+        console.warn(e);
+      }
+      cb(null);
+    }
   });
-  if (error) throw new Error(`Erro de conexão: ${error.message}`);
+  return () => data.subscription.unsubscribe();
+}
 
-  const r = (data || {}) as { ok: boolean; msg?: string };
-  if (!r.ok) throw new Error(r.msg || 'Não foi possível alterar a senha.');
-  return r.msg || 'Senha alterada.';
+export async function logoutAdmin() {
+  try {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+  } catch (e) {
+    console.warn(e);
+  }
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      await client.auth.signOut();
+} catch (e) {
+      console.warn('Erro ao encerrar sessão Google', e);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

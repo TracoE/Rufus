@@ -259,7 +259,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
 
             {scriptAtivo === 'admin' && (
               <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-[11px] font-semibold text-red-800">
-                Cria: rufus_config (gatilhos), rufus_admin (login), busca_ativa_registros e o bucket de anexos. Necessário para o Painel Administrativo.
+                Cria: rufus_config (gatilhos), busca_ativa_registros e o bucket de anexos. Com o login Google, o painel usa as tabelas do JustificaE (escolas.email_admin / professores). Necessário para o Painel Administrativo.
               </div>
             )}
 

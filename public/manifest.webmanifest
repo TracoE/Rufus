@@ -2,7 +2,7 @@
   "name": "RUFUS — Frequência & Busca Ativa",
   "short_name": "RUFUS",
   "description": "Registro de frequência e Busca Ativa APOIA para a rede estadual.",
-  "start_url": "/admin/dashboard",
+  "start_url": "/terminal",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

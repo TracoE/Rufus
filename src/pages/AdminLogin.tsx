@@ -1,63 +1,46 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { loginAdmin, alterarSenhaAdmin } from '../lib/adminClient';
-import { getAdminSession } from '../lib/adminClient';
-import { Lock, Mail, LogIn, KeyRound, ArrowLeft, Loader2, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { loginGoogle, obterSessaoAdmin, assinarMudancaAuth, getAdminSession } from '../lib/adminClient';
+import { ArrowLeft, Loader2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { LogoRufus } from '../components/LogoRufus';
 
 export const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checando, setChecando] = useState(true);
 
-  // Fluxo de troca de senha obrigatória (1º acesso / senha padrão 000000)
-  const [trocarSenha, setTrocarSenha] = useState<{ email: string; nome: string } | null>(null);
-  const [novaSenha, setNovaSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [changeLoading, setChangeLoading] = useState(false);
+  // Ao carregar a página (inclusive no retorno do OAuth do Google), restaura a
+  // sessão e redireciona para o painel quando já autenticado.
+  useEffect(() => {
+    let ativo = true;
+    obterSessaoAdmin().then(sessao => {
+      if (!ativo) return;
+      if (sessao) navigate('/admin/dashboard', { replace: true });
+      setChecando(false);
+    }).catch(() => {
+      if (ativo) setChecando(false);
+    });
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+    const unsub = assinarMudancaAuth(sessao => {
+      if (!ativo) return;
+      if (sessao) navigate('/admin/dashboard', { replace: true });
+    });
+    return () => {
+      ativo = false;
+      if (unsub) unsub();
+    };
+  }, [navigate]);
+
+  const handleGoogle = async () => {
     setError(null);
     setLoading(true);
     try {
-      const sessao = await loginAdmin(email.trim(), senha);
-      if (sessao.senha_padrao) {
-        setTrocarSenha({ email: sessao.email, nome: sessao.nome });
-      } else {
-        navigate('/admin/dashboard', { replace: true });
-      }
+      await loginGoogle();
+      // O redirect do Google acontece aqui; o restante é tratado no retorno.
     } catch (err: any) {
-      setError(err.message || 'Falha no login.');
-    } finally {
+      setError(err.message || 'Falha ao iniciar o login com Google.');
       setLoading(false);
-    }
-  };
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    if (novaSenha.length < 4) {
-      setError('A nova senha deve ter ao menos 4 caracteres.');
-      return;
-    }
-    if (novaSenha !== confirmarSenha) {
-      setError('As senhas não conferem.');
-      return;
-    }
-    setChangeLoading(true);
-    try {
-      await alterarSenhaAdmin(trocarSenha!.email, senha, novaSenha);
-      setTrocarSenha(null);
-      setNovaSenha('');
-      setConfirmarSenha('');
-      navigate('/admin/dashboard', { replace: true });
-    } catch (err: any) {
-      setError(err.message || 'Não foi possível alterar a senha.');
-    } finally {
-      setChangeLoading(false);
     }
   };
 
@@ -79,84 +62,23 @@ export const AdminLogin: React.FC = () => {
           </div>
 
           <div className="p-6 space-y-5">
-            {trocarSenha ? (
-              <>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900 font-medium flex items-start gap-2">
-                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong>Senha padrão detectada.</strong> Por segurança, defina uma nova senha antes de continuar.
-                  </div>
-                </div>
-
-                <form onSubmit={handleChangePassword} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Nova Senha</label>
-                    <div className="relative">
-                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                      <input
-                        type="password"
-                        value={novaSenha}
-                        onChange={e => setNovaSenha(e.target.value)}
-                        placeholder="Mínimo 4 caracteres"
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-300 focus:border-slate-900 font-mono text-sm outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Confirmar Nova Senha</label>
-                    <div className="relative">
-                      <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                      <input
-                        type="password"
-                        value={confirmarSenha}
-                        onChange={e => setConfirmarSenha(e.target.value)}
-                        placeholder="Repita a nova senha"
-                        className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-300 focus:border-slate-900 font-mono text-sm outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700">{error}</div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={changeLoading}
-                    className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
-                  >
-                    {changeLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-                    SALVAR NOVA SENHA E ACESSAR
-                  </button>
-                </form>
-              </>
+            {checando ? (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                <Loader2 className="w-6 h-6 animate-spin mb-3" />
+                <p className="text-sm font-semibold">Verificando sessão...</p>
+              </div>
+            ) : getAdminSession() ? (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                <Loader2 className="w-6 h-6 animate-spin mb-3" />
+                <p className="text-sm font-semibold">Entrando no painel...</p>
+              </div>
             ) : (
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">E-mail do Administrador</label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="admin@escola.edu.br"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-300 focus:border-slate-900 text-sm outline-none transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Senha de Acesso</label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
-                    <input
-                      type="password"
-                      value={senha}
-                      onChange={e => setSenha(e.target.value)}
-                      placeholder="Digite sua senha"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-300 focus:border-slate-900 font-mono text-sm outline-none transition-all"
-                    />
+              <>
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-900 font-medium flex items-start gap-2">
+                  <AlertTriangle className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div>
+                    O acesso é feito com a <strong>conta Google do administrador da escola</strong>,
+                    a mesma cadastrada no JustificaE.
                   </div>
                 </div>
 
@@ -165,14 +87,23 @@ export const AdminLogin: React.FC = () => {
                 )}
 
                 <button
-                  type="submit"
+                  onClick={handleGoogle}
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-extrabold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="w-full py-3.5 rounded-xl bg-white border-2 border-slate-300 hover:border-slate-900 disabled:opacity-60 text-slate-800 font-extrabold text-sm flex items-center justify-center gap-3 transition-all cursor-pointer"
                 >
-                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-                  ENTRAR NO PAINEL
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                  ) : (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                      <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/>
+                      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/>
+                      <path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/>
+                      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75z"/>
+                    </svg>
+                  )}
+                  {loading ? 'AUTENTICANDO...' : 'ENTRAR COM GOOGLE'}
                 </button>
-              </form>
+              </>
             )}
           </div>
         </div>

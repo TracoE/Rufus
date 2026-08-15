@@ -7,6 +7,8 @@ import {
   StatusKanban,
   getLocalDateStr,
   getAdminSession,
+  obterSessaoAdmin,
+  assinarMudancaAuth,
   SessaoAdmin
 } from '../lib/adminClient';
 import { updateTurmaVisibilidade, updateTurmaSegmento, testSupabaseConnection } from '../lib/supabaseClient';
@@ -15,10 +17,9 @@ import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
 import { RelatorioApoiaModal } from '../components/admin/RelatorioApoiaModal';
-import { NovaEscolaModal } from '../components/admin/NovaEscolaModal';
 import { SupabaseModal } from '../components/SupabaseModal';
 import { LogoRufus } from '../components/LogoRufus';
-import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, PlusCircle, Sparkles, Database } from 'lucide-react';
+import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, Sparkles, Database } from 'lucide-react';
 
 type FiltroStatus = 'TODOS' | StatusKanban;
 
@@ -30,7 +31,7 @@ export const AdminDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Sessão do administrador logado (vazia quando acessar direto pela URL)
-  const [sessao] = useState<SessaoAdmin | null>(() => getAdminSession());
+  const [sessao, setSessao] = useState<SessaoAdmin | null>(() => getAdminSession());
 
   // Status da conexão Supabase (banner do painel)
   const [conn, setConn] = useState<SupabaseConfig | null>(null);
@@ -49,7 +50,6 @@ export const AdminDashboard: React.FC = () => {
   const [dossieCard, setDossieCard] = useState<DadosKanbanAluno | null>(null);
   const [relatorioCard, setRelatorioCard] = useState<DadosKanbanAluno | null>(null);
   const [configAberta, setConfigAberta] = useState(false);
-  const [novaEscolaAberta, setNovaEscolaAberta] = useState(false);
   const [supabaseConfigAberta, setSupabaseConfigAberta] = useState(false);
 
   // Toggle visibilidade de turmas no painel de chamadas
@@ -102,10 +102,23 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!getAdminSession()) {
-      navigate('/admin/login', { replace: true });
+      // Restaura a sessão vinda do retorno do Google; se ainda não houver,
+      // envia para o login.
+      obterSessaoAdmin().then(sessao => {
+        if (sessao) setSessao(sessao);
+        else navigate('/admin/login', { replace: true });
+      }).catch(() => navigate('/admin/login', { replace: true }));
       return;
     }
     testSupabaseConnection().then(setConn);
+  }, [navigate]);
+
+  // Encerra a sessão automaticamente quando o Google desloga
+  useEffect(() => {
+    const unsub = assinarMudancaAuth(sessao => {
+      if (!sessao) navigate('/admin/login', { replace: true });
+    });
+    return () => { if (unsub) unsub(); };
   }, [navigate]);
 
   useEffect(() => {
@@ -162,16 +175,6 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {sessao?.is_super && (
-              <button
-                onClick={() => setNovaEscolaAberta(true)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold border border-emerald-500 transition-all cursor-pointer"
-                title="Criar nova escola + administrador"
-              >
-                <PlusCircle className="w-4 h-4" />
-                Nova Escola
-              </button>
-            )}
             <button
               onClick={() => setConfigAberta(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all cursor-pointer"
@@ -434,13 +437,6 @@ export const AdminDashboard: React.FC = () => {
         mes={mes}
         onClose={() => setRelatorioCard(null)}
       />
-      {sessao?.is_super && (
-        <NovaEscolaModal
-          sessao={sessao}
-          isOpen={novaEscolaAberta}
-          onClose={() => setNovaEscolaAberta(false)}
-        />
-      )}
 
       <SupabaseModal
         isOpen={supabaseConfigAberta}
