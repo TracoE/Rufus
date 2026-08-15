@@ -10,7 +10,7 @@ import {
   SessaoAdmin
 } from '../lib/adminClient';
 import { updateTurmaVisibilidade, testSupabaseConnection } from '../lib/supabaseClient';
-import { getAdminEscolaId, fetchEscolaNome } from '../lib/adminClient';
+import { getAdminEscolaId, fetchEscolaNome, logoutAdmin } from '../lib/adminClient';
 import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
@@ -177,7 +177,7 @@ export const AdminDashboard: React.FC = () => {
               <span className="capitalize">{dataHoje}</span>
             </div>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => { logoutAdmin(); navigate('/'); }}
               className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-950/60 hover:bg-red-900 text-red-300 text-xs font-bold border border-red-800/60 transition-all cursor-pointer"
             >
               <LogOut className="w-4 h-4" />

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, Navigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { loginAdmin, alterarSenhaAdmin } from '../lib/adminClient';
 import { getAdminSession } from '../lib/adminClient';
 import { Lock, Mail, LogIn, KeyRound, ArrowLeft, Loader2, AlertTriangle, ShieldCheck } from 'lucide-react';
@@ -10,12 +10,6 @@ export const AdminLogin: React.FC = () => {
   const [senha, setSenha] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Redireciona após renderização (evita chamar navigate() durante o render)
-  const [jaLogado, setJaLogado] = useState(false);
-  useEffect(() => {
-    if (getAdminSession()) setJaLogado(true);
-  }, []);
 
   // Fluxo de troca de senha obrigatória (1º acesso / senha padrão 000000)
   const [trocarSenha, setTrocarSenha] = useState<{ email: string; nome: string } | null>(null);
@@ -65,10 +59,6 @@ export const AdminLogin: React.FC = () => {
       setChangeLoading(false);
     }
   };
-
-  if (jaLogado) {
-    return <Navigate to="/admin/dashboard" replace />;
-  }
 
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950">
