@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Sparkles, ShieldCheck, School } from 'lucide-react';
-import { SupabaseConfig } from '../types';
 import { fetchEscolaNome, getSegmento } from '../lib/supabaseClient';
 
 interface HeaderProps {
   dataAtualFormatada: string;
-  supabaseConfig: SupabaseConfig;
   onOpenSegmentoModal: () => void;
   salaId?: string;
   escolaId?: string;
@@ -14,13 +12,12 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   dataAtualFormatada,
-  supabaseConfig,
   onOpenSegmentoModal,
   salaId = 'SALA 102',
   escolaId
 }) => {
   const [escolaNome, setEscolaNome] = useState<string | null>(null);
-  const [segmento, setSegmento] = useState(() => getSegmento());
+  const segmento = getSegmento();
 
   useEffect(() => {
     let ativo = true;
@@ -73,21 +70,17 @@ export const Header: React.FC<HeaderProps> = ({
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
         </Link>
 
-        {/* Seletor de Segmento do Terminal (F1, F2, M...) */}
+        {/* Seletor de Segmento do Terminal (discreto — apenas ícone; F1, F2, M...) */}
         <button
-          onClick={() => { setSegmento(getSegmento()); onOpenSegmentoModal(); }}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+          onClick={onOpenSegmentoModal}
+          className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-800/70 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 transition-all cursor-pointer"
+          title={
             segmento
-              ? 'bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-200 border-indigo-700/60'
-              : 'bg-slate-800/70 hover:bg-slate-700/80 text-slate-200 border-slate-700/60'
-          }`}
-          title="Definir quais turmas este terminal exibe (segmento)"
+              ? `Terminal exibindo o segmento ${segmento} (clique para alterar)`
+              : 'Exibindo todos os segmentos deste terminal'
+          }
         >
           <Sparkles className="w-4 h-4" />
-          <span className="hidden md:inline">
-            {segmento ? `Segmento: ${segmento}` : 'Todos os segmentos'}
-          </span>
-          <span className={`w-2.5 h-2.5 rounded-full ${supabaseConfig.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
         </button>
       </div>
     </header>

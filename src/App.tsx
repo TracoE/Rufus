@@ -186,7 +186,6 @@ export default function App() {
       {/* Fixed Header */}
       <Header
         dataAtualFormatada={dataAtualFormatada}
-        supabaseConfig={supabaseConfig}
         onOpenSegmentoModal={() => setIsSegmentoModalOpen(true)}
         salaId="SALA 102"
         escolaId={getEscolaId()}
