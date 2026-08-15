@@ -55,3 +55,18 @@ ALTER TABLE turmas
 -- UPDATE turmas SET mostrar_no_painel = false
 --   WHERE id IN ('<uuid-da-turma1>', '<uuid-da-turma2>');
 `;
+
+// Migração isolada: adiciona o segmento (grupo) da turma.
+// A escola define livremente o rótulo (ex: 'EF', 'F2M', 'N', ...). 
+// O terminal e o painel filtram as turmas por esse segmento.
+export const SUPABASE_ADD_SEGMENTO_SQL = `-- =======================================================
+-- MIGRAÇÃO: segmento (grupo) das turmas (tabela turmas)
+-- Cole no SQL Editor do projeto Supabase e execute UMA vez.
+-- Depois defina o segmento de cada turma no Painel > Configurações.
+-- =======================================================
+ALTER TABLE turmas
+  ADD COLUMN IF NOT EXISTS segmento TEXT;
+
+-- [Opcional] Exemplo: marcar as turmas do Fundamental 1.
+-- UPDATE turmas SET segmento = 'EF' WHERE nome LIKE '%EF';
+`;

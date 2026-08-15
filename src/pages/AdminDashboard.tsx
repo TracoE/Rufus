@@ -9,14 +9,14 @@ import {
   getAdminSession,
   SessaoAdmin
 } from '../lib/adminClient';
-import { updateTurmaVisibilidade, testSupabaseConnection } from '../lib/supabaseClient';
+import { updateTurmaVisibilidade, updateTurmaSegmento, testSupabaseConnection } from '../lib/supabaseClient';
 import { getAdminEscolaId, fetchEscolaNome, logoutAdmin } from '../lib/adminClient';
 import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
 import { RelatorioApoiaModal } from '../components/admin/RelatorioApoiaModal';
 import { NovaEscolaModal } from '../components/admin/NovaEscolaModal';
-import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, PlusCircle } from 'lucide-react';
+import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, PlusCircle, Sparkles } from 'lucide-react';
 
 type FiltroStatus = 'TODOS' | StatusKanban;
 
@@ -39,6 +39,7 @@ export const AdminDashboard: React.FC = () => {
   // Filtros
   const [mes, setMes] = useState(() => getLocalDateStr().slice(0, 7));
   const [turmaId, setTurmaId] = useState('');
+  const [segmentoFiltro, setSegmentoFiltro] = useState('');
   const [alerta, setAlerta] = useState<FiltroStatus>('TODOS');
   const [busca, setBusca] = useState('');
 
@@ -62,6 +63,20 @@ export const AdminDashboard: React.FC = () => {
       } : prev);
     } else {
       alert('Erro ao salvar. Verifique a conexão com o Supabase.');
+    }
+  };
+
+  const salvarSegmentoTurma = async (turmaId: string, segmento: string) => {
+    setSalvandoTurma(turmaId);
+    const ok = await updateTurmaSegmento(turmaId, segmento);
+    setSalvandoTurma(null);
+    if (ok) {
+      setData(prev => prev ? {
+        ...prev,
+        turmas: prev.turmas.map(t => t.id === turmaId ? { ...t, segmento: segmento.trim() ? segmento.trim() : null } : t)
+      } : prev);
+    } else {
+      alert('Erro ao salvar segmento. Verifique a conexão com o Supabase.');
     }
   };
 
@@ -105,6 +120,10 @@ export const AdminDashboard: React.FC = () => {
   // Aplica filtros
   const cardsFiltrados = (data?.cards || []).filter(c => {
     if (turmaId && c.aluno.turma_id !== turmaId) return false;
+    if (segmentoFiltro) {
+      const segTurma = data?.turmas.find(t => t.id === c.aluno.turma_id)?.segmento;
+      if (segTurma !== segmentoFiltro) return false;
+    }
     if (alerta !== 'TODOS' && c.status !== alerta) return false;
     if (busca && !c.aluno.nome.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
@@ -212,6 +231,20 @@ export const AdminDashboard: React.FC = () => {
                 <option value="">Todas</option>
                 {(data?.turmas || []).map(t => (
                   <option key={t.id} value={t.id}>Turma {t.nome}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Segmento</label>
+              <select
+                value={segmentoFiltro}
+                onChange={e => setSegmentoFiltro(e.target.value)}
+                className="px-2 py-1 rounded-lg border border-slate-300 focus:border-slate-900 text-xs font-semibold outline-none transition-all"
+              >
+                <option value="">Todos</option>
+                {Array.from(new Set((data?.turmas || []).map(t => t.segmento).filter((s): s is string => !!s))).sort().map(s => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </div>
@@ -325,28 +358,53 @@ export const AdminDashboard: React.FC = () => {
                   Desative as turmas que não devem aparecer no terminal do professor. Configuração feita, via de regra, uma única vez.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2 max-h-[50vh] overflow-y-auto">
+              <div className="max-h-[50vh] overflow-y-auto space-y-2">
                 {[...(data?.turmas || [])].sort((a, b) => a.nome.localeCompare(b.nome, undefined, { numeric: true })).map(t => {
                   const visivel = t.mostrar_no_painel !== false;
                   return (
-                    <button
+                    <div
                       key={t.id}
-                      disabled={salvandoTurma === t.id}
-                      onClick={() => toggleVisibilidadeTurma(t.id, !visivel)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait ${
-                        visivel
-                          ? 'bg-slate-900 border-slate-900 text-white hover:bg-slate-700'
-                          : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-100'
+                      className={`flex flex-wrap items-center gap-2 px-3 py-2 rounded-lg border text-xs transition-all ${
+                        visivel ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-50 opacity-80'
                       }`}
                     >
-                      {visivel ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                      {t.nome}
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase ${visivel ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                      <button
+                        disabled={salvandoTurma === t.id}
+                        onClick={() => toggleVisibilidadeTurma(t.id, !visivel)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait ${
+                          visivel
+                            ? 'bg-slate-900 border-slate-900 text-white hover:bg-slate-700'
+                            : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-100'
+                        }`}
+                      >
+                        {visivel ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        <span className="font-extrabold">{t.nome}</span>
+                      </button>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase ${visivel ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
                         {visivel ? 'Visível' : 'Oculto'}
                       </span>
-                    </button>
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        <Sparkles className="w-3.5 h-3.5 text-slate-400" />
+                        <input
+                          key={`seg-${t.id}-${t.segmento || ''}`}
+                          type="text"
+                          defaultValue={t.segmento || ''}
+                          disabled={salvandoTurma === t.id}
+                          onBlur={e => salvarSegmentoTurma(t.id, e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                          }}
+                          placeholder="segmento"
+                          title="Segmento/agrupamento da turma (ex.: EF, F2, Médio). É usado por terminais fixos e pelo filtro acima."
+                          className="w-24 px-2 py-1 rounded-lg border border-slate-300 focus:border-slate-900 text-xs font-semibold outline-none transition-all disabled:opacity-50"
+                        />
+                      </div>
+                    </div>
                   );
                 })}
+                {(!data?.turmas || data.turmas.length === 0) && (
+                  <p className="text-xs text-slate-500 text-center py-4">Nenhuma turma encontrada para esta escola.</p>
+                )}
               </div>
             </div>
 

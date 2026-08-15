@@ -239,4 +239,9 @@ CREATE POLICY "Rufus anexos update" ON storage.objects FOR UPDATE USING (bucket_
 
 DROP POLICY IF EXISTS "Rufus anexos delete" ON storage.objects;
 CREATE POLICY "Rufus anexos delete" ON storage.objects FOR DELETE USING (bucket_id = 'busca_ativa_anexos');
+
+-- 5. SEGMENTO (GRUPO) DAS TURMAS — usado pelos terminais fixos e filtro do painel.
+-- Rótulo livre definido pela escola (ex.: 'EF', 'F2', 'Medio'). Terminal vazio = mostra todas.
+ALTER TABLE turmas
+  ADD COLUMN IF NOT EXISTS segmento TEXT;
 `;

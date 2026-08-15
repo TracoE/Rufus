@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SupabaseConfig } from '../types';
-import { saveStoredCredentials, testSupabaseConnection, resetLocalData, getEscolaId, saveStoredEscolaId } from '../lib/supabaseClient';
+import { saveStoredCredentials, testSupabaseConnection, resetLocalData, getEscolaId, saveStoredEscolaId, getSegmento, saveStoredSegmento } from '../lib/supabaseClient';
 import { SUPABASE_SQL_SCRIPT } from '../lib/supabaseSchema';
 import { ADMIN_SQL_SCRIPT } from '../lib/supabaseAdminSchema';
 import { Database, Copy, Check, RefreshCw, X, Key, ExternalLink, ShieldAlert, Sparkles, School } from 'lucide-react';
@@ -21,6 +21,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
   const [url, setUrl] = useState(config.url);
   const [key, setKey] = useState(config.key);
   const [escolaId, setEscolaId] = useState(getEscolaId());
+  const [segmento, setSegmento] = useState(getSegmento());
   const [testing, setTesting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -36,6 +37,7 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
 
     saveStoredCredentials(url.trim(), key.trim());
     saveStoredEscolaId(escolaId);
+    saveStoredSegmento(segmento);
 
     const result = await testSupabaseConnection();
     setTesting(false);
@@ -165,6 +167,23 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
               />
               <p className="text-[11px] text-slate-500 mt-1">
                 Deixe em branco para usar o valor de VITE_ESCOLA_ID. O kiosk mostra apenas as turmas e alunos desta escola.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-slate-500" />
+                Segmento deste terminal (opcional)
+              </label>
+              <input
+                type="text"
+                value={segmento}
+                onChange={e => setSegmento(e.target.value)}
+                placeholder="Ex.: EF, F2, Med (deixe vazio para mostrar todas as turmas)"
+                className="w-full px-4 py-3 rounded-xl border-2 border-slate-300 focus:border-slate-900 text-sm outline-none transition-all"
+              />
+              <p className="text-[11px] text-slate-500 mt-1">
+                Se preenchido, este terminal exibe apenas as turmas desta escola marcadas com esse segmento no Painel › Configurações.
               </p>
             </div>
 

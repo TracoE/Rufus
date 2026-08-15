@@ -7,6 +7,7 @@ export interface Turma {
   sala?: string;
   horario_previsto?: string;
   mostrar_no_painel?: boolean;
+  segmento?: string;
 }
 
 export interface Aluno {

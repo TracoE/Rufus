@@ -189,7 +189,7 @@ export async function fetchConfig(): Promise<ConfigRufus> {
 export interface DadosKanban {
   cards: DadosKanbanAluno[];
   config: ConfigRufus;
-  turmas: { id: string; nome: string; mostrar_no_painel?: boolean }[];
+  turmas: { id: string; nome: string; mostrar_no_painel?: boolean; segmento?: string | null }[];
 }
 
 export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
@@ -198,7 +198,7 @@ export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
   if (!client) throw new Error('Supabase não configurado.');
 
   const [turmasRes, alunosRes, chamadasRes, atestadosRes, registrosRes, config] = await Promise.all([
-    client.from('turmas').select('id, nome, mostrar_no_painel').eq('escola_id', escolaId),
+    client.from('turmas').select('id, nome, mostrar_no_painel, segmento').eq('escola_id', escolaId),
     client.from('alunos').select('*').eq('escola_id', escolaId),
     client.from('rufus_chamadas').select('*').eq('escola_id', escolaId),
     client.from('atestados').select('aluno_id, data_inicio, data_fim').eq('escola_id', escolaId),
@@ -206,7 +206,7 @@ export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
     fetchConfig()
   ]);
 
-  const turmas = (turmasRes.data || []) as { id: string; nome: string; mostrar_no_painel?: boolean }[];
+  const turmas = (turmasRes.data || []) as { id: string; nome: string; mostrar_no_painel?: boolean; segmento?: string | null }[];
   const alunos = (alunosRes.data || []) as Aluno[];
   // Acumulativo no ano letivo: considera todas as chamadas desde o início
   // (inclusive meses anteriores) até o mês selecionado. Assim a situação

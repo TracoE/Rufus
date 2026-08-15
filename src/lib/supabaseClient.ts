@@ -9,6 +9,7 @@ const LOCAL_STORAGE_KEY_CHAMADAS = 'kiosk_apoia_chamadas_v1';
 const LOCAL_STORAGE_KEY_FALTAS = 'kiosk_apoia_faltas_v1';
 const LOCAL_STORAGE_KEY_CREDENTIALS = 'kiosk_apoia_credentials_v1';
 const LOCAL_STORAGE_KEY_ESCOLA = 'kiosk_apoia_escola_id_v1';
+const LOCAL_STORAGE_KEY_SEGMENTO = 'kiosk_apoia_segmento_v1';
 
 // Escola padrão do kiosk RUFUS (tabela escolas do projeto compartilhado)
 const DEFAULT_ESCOLA_ID = 'ada36312-3d8c-4e26-a94d-baf3fe120418';
@@ -52,6 +53,29 @@ export function saveStoredEscolaId(escolaId: string) {
     }
   } catch (e) {
     console.error('Erro ao salvar escola', e);
+  }
+}
+
+// Segmento (grupo) que este terminal exibe. Se vazio, mostra todas as turmas.
+export function getSegmento(): string {
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY_SEGMENTO);
+    if (saved && saved.trim()) return saved.trim();
+  } catch (e) {
+    console.warn('Erro ao ler segmento do localStorage', e);
+  }
+  return '';
+}
+
+export function saveStoredSegmento(segmento: string) {
+  try {
+    if (segmento.trim()) {
+      localStorage.setItem(LOCAL_STORAGE_KEY_SEGMENTO, segmento.trim());
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_KEY_SEGMENTO);
+    }
+  } catch (e) {
+    console.error('Erro ao salvar segmento', e);
   }
 }
 
@@ -141,6 +165,25 @@ export async function updateTurmaVisibilidade(turmaId: string, mostrarNoPainel: 
     return true;
   } catch (err) {
     console.error('Falha ao atualizar visibilidade da turma:', err);
+    return false;
+  }
+}
+
+export async function updateTurmaSegmento(turmaId: string, segmento: string): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+  try {
+    const { error } = await client
+      .from('turmas')
+      .update({ segmento: segmento.trim() ? segmento.trim() : null })
+      .eq('id', turmaId);
+    if (error) {
+      console.error('Erro ao atualizar segmento da turma:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Falha ao atualizar segmento da turma:', err);
     return false;
   }
 }
@@ -257,7 +300,12 @@ export async function fetchTurmasComStatus(dataChamadaDateStr?: string): Promise
         .eq('escola_id', escolaId);
       if (errT) throw errT;
       // Exibe apenas turmas livres para o painel geral (campo mostrar_no_painel)
-      const turmasVisiveis = (turmasDb || []).filter((t: Turma) => t.mostrar_no_painel !== false);
+      let turmasVisiveis = (turmasDb || []).filter((t: Turma) => t.mostrar_no_painel !== false);
+      // Se o terminal está fixo em um segmento, mostra apenas as turmas dele.
+      const segmento = getSegmento();
+      if (segmento) {
+        turmasVisiveis = turmasVisiveis.filter((t: Turma) => t.segmento === segmento);
+      }
 
       if (turmasVisiveis.length === 0) {
         // Banco ok, mas nenhuma turma visível para esta escola
