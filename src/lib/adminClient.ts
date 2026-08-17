@@ -128,6 +128,95 @@ export async function fetchEscolas(): Promise<{ id: string; nome: string }[]> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Códigos de instalação dos terminais (por escola; gerados pelo super).
+// O terminal não lista escolas: no 1º uso pede somente o código, que é
+// resolvido pelo RPC validar (retorna a escola exata, sem enumeração).
+// ---------------------------------------------------------------------------
+
+export interface CodigoEscola {
+  codigo: string;
+  escola_id: string;
+  criado_em: string;
+  criado_por?: string;
+}
+
+// Lista os códigos visíveis para o admin/super logado.
+export async function fetchCodigos(): Promise<CodigoEscola[]> {
+  const client = getSupabaseClient();
+  if (!client) return [];
+  try {
+    const { data, error } = await client
+      .from('rufus_codigos_acesso')
+      .select('codigo, escola_id, criado_em, criado_por')
+      .order('criado_em', { ascending: false });
+    if (error) return [];
+    return (data || []) as CodigoEscola[];
+  } catch (e) {
+    console.warn('Falha ao listar códigos de terminal', e);
+    return [];
+  }
+}
+
+// Gera (ou reusa) um código único para a escola (apenas superusuário).
+export async function gerarCodigoEscola(escolaId: string): Promise<CodigoEscola | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.rpc('rufus_gerar_codigo_escola', { p_escola_id: escolaId });
+    if (error) {
+      console.warn('Erro ao gerar código:', error.message);
+      return null;
+    }
+    const codigo = typeof data === 'string' ? data : null;
+    if (!codigo) return null;
+    return {
+      codigo,
+      escola_id: escolaId,
+      criado_em: new Date().toISOString(),
+      criado_por: getAdminSession()?.email
+    };
+  } catch (e) {
+    console.warn('Falha ao gerar código:', e);
+    return null;
+  }
+}
+
+// Exclui um código (somente admin/super logado).
+export async function excluirCodigoEscola(codigo: string): Promise<boolean> {
+  const client = getSupabaseClient();
+  if (!client) return false;
+  try {
+    const { error } = await client.from('rufus_codigos_acesso').delete().eq('codigo', codigo);
+    if (error) {
+      console.warn('Erro ao excluir código:', error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('Falha ao excluir código:', e);
+    return false;
+  }
+}
+
+// Resolve o código digitado no instalador do terminal → escola exata (sem login).
+export async function buscarEscolaPorCodigo(codigo: string): Promise<{ escola_id: string; nome: string } | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.rpc('rufus_validar_codigo_escola', { p_codigo: codigo });
+    if (error) {
+      console.warn('Erro ao validar código:', error.message);
+      return null;
+    }
+    const row = (data as { escola_id: string; nome: string }[])?.[0];
+    return row ? { escola_id: row.escola_id, nome: row.nome } : null;
+  } catch (e) {
+    console.warn('Falha ao validar código:', e);
+    return null;
+  }
+}
+
 // Inicia o login com o Google (mesma autenticação do JustificaE).
 export async function loginGoogle(): Promise<void> {
   const client = getSupabaseClient();

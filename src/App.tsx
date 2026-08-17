@@ -35,10 +35,12 @@ export default function App() {
   // Modal States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
   const [isSegmentoModalOpen, setIsSegmentoModalOpen] = useState<boolean>(false);
-  const [isEscolaModalOpen, setIsEscolaModalOpen] = useState<boolean>(false);
 
-  // Primeira execução: o terminal ainda não sabe a qual escola pertence
+  // Primeira execução: o terminal ainda não sabe a qual escola pertence.
+  // O seletor abre UMA vez (na instalação); depois o terminal fica travado na
+  // escola salva. Trocar de escola é feito pelo painel admin (SupabaseModal).
   const [escolaConfigurada, setEscolaConfigurada] = useState<boolean>(() => hasEscolaConfigurada());
+  const escolaId = getEscolaId();
 
   // Faltantes for confirmation modal
   const [faltantesParaConfirmar, setFaltantesParaConfirmar] = useState<AlunoComFalta[]>([]);
@@ -194,9 +196,8 @@ export default function App() {
       <Header
         dataAtualFormatada={dataAtualFormatada}
         onOpenSegmentoModal={() => setIsSegmentoModalOpen(true)}
-        onOpenEscolaModal={() => setIsEscolaModalOpen(true)}
         salaId="SALA 102"
-        escolaId={getEscolaId()}
+        escolaId={escolaId}
       />
 
       {/* Main Screen View Navigation */}
@@ -244,18 +245,20 @@ export default function App() {
         }}
       />
 
-      {/* Seletor de escola do terminal (primeira execução / reconfiguração) */}
-      <EscolaModal
-        isOpen={isEscolaModalOpen || !escolaConfigurada}
-        bloqueante={!escolaConfigurada}
-        onClose={() => isEscolaModalOpen ? setIsEscolaModalOpen(false) : undefined}
-        onSaved={() => {
-          setEscolaConfigurada(true);
-          setIsEscolaModalOpen(false);
-          loadSupabaseStatus();
-          loadTurmas();
-        }}
-      />
+      {/* Seletor de escola do terminal — abre UMA vez, na instalação (sem login).
+          Após escolher, o terminal fica travado na escola; trocar é feito no
+          painel admin (SupabaseModal > Escola do Kiosk). */}
+      {!escolaConfigurada && (
+        <EscolaModal
+          isOpen
+          bloqueante
+          onSaved={() => {
+            setEscolaConfigurada(true);
+            loadSupabaseStatus();
+            loadTurmas();
+          }}
+        />
+      )}
 
       {/* Toast Feedback */}
       <ToastNotification

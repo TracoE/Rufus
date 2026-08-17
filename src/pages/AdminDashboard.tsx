@@ -18,8 +18,9 @@ import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
 import { RelatorioApoiaModal } from '../components/admin/RelatorioApoiaModal';
 import { SupabaseModal } from '../components/SupabaseModal';
+import { CodigosTerminalModal } from '../components/admin/CodigosTerminalModal';
 import { LogoRufus } from '../components/LogoRufus';
-import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, Sparkles, Database } from 'lucide-react';
+import { LogOut, Calendar, Search, RefreshCw, ArrowLeft, Eye, EyeOff, Settings, X, School, Sparkles, Database, KeyRound } from 'lucide-react';
 
 type FiltroStatus = 'TODOS' | StatusKanban;
 
@@ -54,6 +55,7 @@ export const AdminDashboard: React.FC = () => {
   const [relatorioCard, setRelatorioCard] = useState<DadosKanbanAluno | null>(null);
   const [configAberta, setConfigAberta] = useState(false);
   const [supabaseConfigAberta, setSupabaseConfigAberta] = useState(false);
+  const [codigosTerminalAberto, setCodigosTerminalAberto] = useState(false);
 
   // Toggle visibilidade de turmas no painel de chamadas
   const [salvandoTurma, setSalvandoTurma] = useState<string | null>(null);
@@ -208,6 +210,16 @@ export const AdminDashboard: React.FC = () => {
               <Database className="w-4 h-4" />
               Supabase
             </button>
+            {sessao?.is_super && (
+              <button
+                onClick={() => setCodigosTerminalAberto(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all cursor-pointer"
+                title="Códigos de instalação dos terminais (por escola)"
+              >
+                <KeyRound className="w-4 h-4" />
+                Códigos dos Terminais
+              </button>
+            )}
             <button
               onClick={() => navigate('/')}
               className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700 transition-all cursor-pointer"
@@ -479,6 +491,11 @@ export const AdminDashboard: React.FC = () => {
           testSupabaseConnection().then(setConn);
           carregar(mes);
         }}
+      />
+
+      <CodigosTerminalModal
+        isOpen={codigosTerminalAberto}
+        onClose={() => setCodigosTerminalAberto(false)}
       />
     </div>
   );
