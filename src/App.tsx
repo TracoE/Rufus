@@ -7,6 +7,7 @@ import {
   testSupabaseConnection,
   getLocalDateStr,
   getEscolaId,
+  hasEscolaConfigurada,
   REQUIRE_DATABASE
 } from './lib/supabaseClient';
 import { Header } from './components/Header';
@@ -14,6 +15,7 @@ import { Dashboard } from './components/Dashboard';
 import { GridFaltantes } from './components/GridFaltantes';
 import { ModalConfirmacao } from './components/ModalConfirmacao';
 import { SegmentoModal } from './components/SegmentoModal';
+import { EscolaModal } from './components/EscolaModal';
 import { ToastNotification } from './components/ToastNotification';
 import { AlertTriangle } from 'lucide-react';
 
@@ -33,6 +35,10 @@ export default function App() {
   // Modal States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
   const [isSegmentoModalOpen, setIsSegmentoModalOpen] = useState<boolean>(false);
+  const [isEscolaModalOpen, setIsEscolaModalOpen] = useState<boolean>(false);
+
+  // Primeira execução: o terminal ainda não sabe a qual escola pertence
+  const [escolaConfigurada, setEscolaConfigurada] = useState<boolean>(() => hasEscolaConfigurada());
 
   // Faltantes for confirmation modal
   const [faltantesParaConfirmar, setFaltantesParaConfirmar] = useState<AlunoComFalta[]>([]);
@@ -95,9 +101,10 @@ export default function App() {
 
   // Initial Boot
   useEffect(() => {
+    if (!escolaConfigurada) return;
     loadSupabaseStatus();
     loadTurmas();
-  }, [loadSupabaseStatus, loadTurmas]);
+  }, [escolaConfigurada, loadSupabaseStatus, loadTurmas]);
 
   // Handle selecting a class from Dashboard (Tela 1 -> Tela 2)
   const handleSelectTurma = async (turma: TurmaComChamada) => {
@@ -187,6 +194,7 @@ export default function App() {
       <Header
         dataAtualFormatada={dataAtualFormatada}
         onOpenSegmentoModal={() => setIsSegmentoModalOpen(true)}
+        onOpenEscolaModal={() => setIsEscolaModalOpen(true)}
         salaId="SALA 102"
         escolaId={getEscolaId()}
       />
@@ -231,6 +239,19 @@ export default function App() {
         isOpen={isSegmentoModalOpen}
         onClose={() => setIsSegmentoModalOpen(false)}
         onSaved={() => {
+          loadSupabaseStatus();
+          loadTurmas();
+        }}
+      />
+
+      {/* Seletor de escola do terminal (primeira execução / reconfiguração) */}
+      <EscolaModal
+        isOpen={isEscolaModalOpen || !escolaConfigurada}
+        bloqueante={!escolaConfigurada}
+        onClose={() => isEscolaModalOpen ? setIsEscolaModalOpen(false) : undefined}
+        onSaved={() => {
+          setEscolaConfigurada(true);
+          setIsEscolaModalOpen(false);
           loadSupabaseStatus();
           loadTurmas();
         }}

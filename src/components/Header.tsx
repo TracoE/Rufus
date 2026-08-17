@@ -7,6 +7,7 @@ import { fetchEscolaNome, getSegmento } from '../lib/supabaseClient';
 interface HeaderProps {
   dataAtualFormatada: string;
   onOpenSegmentoModal: () => void;
+  onOpenEscolaModal?: () => void;
   salaId?: string;
   escolaId?: string;
 }
@@ -14,6 +15,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   dataAtualFormatada,
   onOpenSegmentoModal,
+  onOpenEscolaModal,
   salaId = 'SALA 102',
   escolaId
 }) => {
@@ -78,6 +80,17 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Sparkles className="w-4 h-4" />
         </button>
+
+        {/* Seletor de Escola do Terminal (discreto — apenas ícone) */}
+        {onOpenEscolaModal && (
+          <button
+            onClick={onOpenEscolaModal}
+            className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-800/70 hover:bg-slate-700/80 text-slate-300 border border-slate-700/60 transition-all cursor-pointer"
+            title="Escola deste terminal (clique para alterar)"
+          >
+            <School className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </header>
   );
