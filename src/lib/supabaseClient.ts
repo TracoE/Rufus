@@ -44,17 +44,19 @@ export function getEscolaId(): string {
   return import.meta.env.VITE_ESCOLA_ID || DEFAULT_ESCOLA_ID;
 }
 
-// Se o aparelho já tem uma escola definida — no localStorage (escolhida na
-// instalação) ou no build (VITE_ESCOLA_ID). Usado para decidir se o terminal
-// precisa do seletor de escola no primeiro uso (sem login).
+// Se o aparelho já tem uma escola definida (no localStorage, escolhida na
+// instalação por código). Usado para decidir se o terminal precisa do
+// instalador no primeiro uso (sem login). Ignora VITE_ESCOLA_ID de propósito:
+// num deploy multi-escola, uma escola fixa no build impediria a instalação
+// por código e travaria todos os terminais na mesma escola.
 export function hasEscolaConfigurada(): boolean {
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY_ESCOLA);
-    if (saved && saved.trim()) return true;
+    return !!(saved && saved.trim());
   } catch (e) {
     console.warn('Erro ao ler escola do localStorage', e);
+    return false;
   }
-  return !!(import.meta.env.VITE_ESCOLA_ID && import.meta.env.VITE_ESCOLA_ID.trim());
 }
 
 export function saveStoredEscolaId(escolaId: string) {
