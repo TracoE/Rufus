@@ -12,8 +12,8 @@ interface GridFaltantesProps {
 }
 
 /**
- * Utility to re-index alphabetical array so that CSS grid with grid-cols-5
- * displays names flowing VERTICALLY down Column 1, then top of Column 2, 3, 4, 5.
+ * Re-index alphabetical array so the CSS grid (grid-cols-5) displays names in
+ * natural reading order: top-to-bottom, LEFT-to-RIGHT (alphabetical row by row).
  */
 function organizeStudentsVertical5Columns(alunosList: AlunoComFalta[]): { item: AlunoComFalta; colIndex: number }[] {
   const N = alunosList.length;
@@ -27,9 +27,9 @@ function organizeStudentsVertical5Columns(alunosList: AlunoComFalta[]): { item: 
 
   let studentIndex = 0;
 
-  // Fill column by column (Vertical order)
-  for (let col = 0; col < numCols; col++) {
-    for (let row = 0; row < numRows; row++) {
+  // Fill row by row (natural alphabetical reading order)
+  for (let row = 0; row < numRows; row++) {
+    for (let col = 0; col < numCols; col++) {
       if (studentIndex < N) {
         matrix[row][col] = alunosList[studentIndex];
         studentIndex++;
@@ -51,6 +51,11 @@ function organizeStudentsVertical5Columns(alunosList: AlunoComFalta[]): { item: 
   return result;
 }
 
+function sortAlfabetica(alunos: AlunoComFalta[]): AlunoComFalta[] {
+  const collator = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true });
+  return [...alunos].sort((a, b) => collator.compare(a.nome, b.nome));
+}
+
 export const GridFaltantes: React.FC<GridFaltantesProps> = ({
   turma,
   alunosInitial,
@@ -59,11 +64,11 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
   onOpenConfirmModal,
   isEdicao
 }) => {
-  const [alunosState, setAlunosState] = useState<AlunoComFalta[]>(alunosInitial);
+  const [alunosState, setAlunosState] = useState<AlunoComFalta[]>(sortAlfabetica(alunosInitial));
 
   // Sync state if initial changes
   useEffect(() => {
-    setAlunosState(alunosInitial);
+    setAlunosState(sortAlfabetica(alunosInitial));
   }, [alunosInitial]);
 
   // Toggle absence state for student
@@ -84,27 +89,15 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
     <div className="h-screen w-screen overflow-hidden bg-slate-100 flex flex-col justify-between font-sans select-none">
       {/* 1. Header Fixo superior */}
       <header className="fixed top-0 left-0 w-full z-30 h-[76px] px-6 md:px-10 bg-white border-b border-slate-200 flex items-center justify-between shadow-xs">
-        {/* Left: Voltar (Retornar/Cancelar) + Salvar + Nome da Turma */}
+        {/* Left: Voltar ao Dashboard + Nome da Turma */}
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onBackToDashboard}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm border border-slate-300 transition-all cursor-pointer active:scale-95"
-            >
-              <ArrowLeft className="w-5 h-5 text-slate-700" />
-              <span>{faltantesCount > 0 ? 'Cancelar' : 'Retornar'}</span>
-            </button>
-
-            {faltantesCount > 0 && (
-              <button
-                onClick={() => onOpenConfirmModal(faltantes, totalAlunos)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-sm transition-all cursor-pointer shadow-md"
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                <span>Salvar</span>
-              </button>
-            )}
-          </div>
+          <button
+            onClick={onBackToDashboard}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm border border-slate-300 transition-all cursor-pointer active:scale-95"
+          >
+            <ArrowLeft className="w-5 h-5 text-slate-700" />
+            <span>Voltar ao Dashboard</span>
+          </button>
 
           <div className="h-8 w-[1px] bg-slate-300 hidden sm:block" />
 
@@ -196,14 +189,26 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
           </div>
         </div>
 
-        {/* Right: Action Button */}
-        <button
-          onClick={() => onOpenConfirmModal(faltantes, totalAlunos)}
-          className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-base md:text-lg px-8 py-4 rounded-xl flex items-center gap-3 transition-all cursor-pointer shadow-lg tracking-wide"
-        >
-          <CheckCircle2 className="w-6 h-6" />
-          <span>{isEdicao ? '[ ATUALIZAR CHAMADA ]' : '[ SALVAR CHAMADA ]'}</span>
-        </button>
+        {/* Right: Retornar/Cancelar + Salvar */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBackToDashboard}
+            className="flex items-center gap-2 px-6 py-4 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-extrabold text-base md:text-lg transition-all cursor-pointer border border-slate-600"
+          >
+            <ArrowLeft className="w-6 h-6" />
+            <span>{faltantesCount > 0 ? '[ Cancelar ]' : '[ Retornar ]'}</span>
+          </button>
+
+          {faltantesCount > 0 && (
+            <button
+              onClick={() => onOpenConfirmModal(faltantes, totalAlunos)}
+              className="flex items-center gap-3 px-8 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-base md:text-lg transition-all cursor-pointer shadow-lg"
+            >
+              <CheckCircle2 className="w-6 h-6" />
+              <span>[ Salvar ]</span>
+            </button>
+          )}
+        </div>
       </footer>
     </div>
   );

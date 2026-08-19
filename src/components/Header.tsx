@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Sparkles, ShieldCheck, School } from 'lucide-react';
+import { Calendar, Sparkles, ShieldCheck, School, Download } from 'lucide-react';
 import { LogoRufus } from './LogoRufus';
 import { fetchEscolaNome, getSegmento } from '../lib/supabaseClient';
+import { usePwaInstall } from '../lib/usePwaInstall';
 
 interface HeaderProps {
   dataAtualFormatada: string;
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [escolaNome, setEscolaNome] = useState<string | null>(null);
   const segmento = getSegmento();
+  const { canInstall, promptInstall } = usePwaInstall();
 
   useEffect(() => {
     let ativo = true;
@@ -57,6 +59,18 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: School Identity & Segment Selector */}
       <div className="flex items-center gap-3">
+        {/* Instalar app (PWA) — aparece apenas quando o navegador permite */}
+        {canInstall && (
+          <button
+            onClick={promptInstall}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-sm border border-emerald-500/60 transition-all cursor-pointer"
+            title="Instalar o RUFUS na tela inicial deste dispositivo"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden md:inline">Instalar</span>
+          </button>
+        )}
+
         {/* Link para o Painel Administrativo (acesso pela equipe pedagógica) */}
         <Link
           to="/admin/login"
