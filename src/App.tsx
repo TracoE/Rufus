@@ -133,6 +133,26 @@ export default function App() {
     setIsConfirmModalOpen(true);
   };
 
+  // Marcar turma como 100% de presença (zero faltas) para sair de "pendente"
+  const handleMarcarTodosPresentes = async (turma: TurmaComChamada) => {
+    try {
+      const res = await salvarOuAtualizarChamada(turma.id, dataChamadaStr, []);
+      if (res.success) {
+        setToast({
+          message: `Turma ${turma.nome} marcada com 100% de presença!`,
+          type: 'success'
+        });
+        await loadTurmas();
+      }
+    } catch (err: any) {
+      console.error('Erro ao marcar 100% presença:', err);
+      setToast({
+        message: 'Erro ao marcar presença da turma. Tente novamente.',
+        type: 'error'
+      });
+    }
+  };
+
   // Perform Chamada Persistence in Supabase / Fallback (UPSERT)
   const handleConfirmSalvarChamada = async () => {
     if (!selectedTurma) return;
@@ -207,6 +227,7 @@ export default function App() {
           loading={loadingTurmas}
           onSelectTurma={handleSelectTurma}
           onRefresh={loadTurmas}
+          onMarcarTodosPresentes={handleMarcarTodosPresentes}
         />
       ) : selectedTurma ? (
         <GridFaltantes
