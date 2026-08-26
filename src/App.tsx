@@ -134,12 +134,13 @@ export default function App() {
   };
 
   // Marcar turma como 100% de presença (zero faltas) para sair de "pendente"
-  const handleMarcarTodosPresentes = async (turma: TurmaComChamada) => {
+  const handleMarcarTodosPresentes = async () => {
+    if (!selectedTurma) return;
     try {
-      const res = await salvarOuAtualizarChamada(turma.id, dataChamadaStr, []);
+      const res = await salvarOuAtualizarChamada(selectedTurma.id, dataChamadaStr, []);
       if (res.success) {
         setToast({
-          message: `Turma ${turma.nome} marcada com 100% de presença!`,
+          message: `Turma ${selectedTurma.nome} marcada com 100% de presença!`,
           type: 'success'
         });
         await loadTurmas();

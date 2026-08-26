@@ -135,7 +135,7 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
       </header>
 
       {/* 2. Corpo da Tela: GRID FIXO DE EXACTAMENTE 4 COLUNAS VERTICAIS */}
-      <main className="pt-[90px] pb-[104px] px-4 md:px-6 flex-1 flex flex-col justify-center overflow-hidden">
+      <main className="pt-[90px] pb-[96px] md:pb-[104px] px-4 md:px-6 flex-1 flex flex-col justify-center overflow-hidden">
         {alunosState.length === 0 ? (
           <div className="text-center py-20 text-slate-500 font-semibold">
             Nenhum aluno cadastrado nesta turma.
@@ -176,21 +176,20 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
       </main>
 
       {/* 3. Bottom Bar Fixa (~88px) */}
-      <footer className="fixed bottom-0 left-0 w-full z-40 h-[88px] px-6 md:px-10 bg-slate-900 text-white border-t border-slate-800 flex items-center justify-between shadow-2xl">
+      <footer className="fixed bottom-0 left-0 w-full z-40 min-h-[72px] md:h-[88px] px-3 md:px-10 bg-slate-900 text-white border-t border-slate-800 flex items-center justify-between gap-2 shadow-2xl">
         {/* Left: Dynamic Real-time Counter */}
-        <div className="flex items-center gap-4">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg ${
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
+          <div className={`w-10 h-10 md:w-12 md:h-12 shrink-0 rounded-xl flex items-center justify-center font-black text-base md:text-lg ${
             faltantesCount > 0 ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
           }`}>
             {faltantesCount}
           </div>
-          <div>
-            <div className="text-lg md:text-xl font-black text-white tracking-tight">
-              Alunos Faltantes Marcados: <span className={faltantesCount > 0 ? 'text-red-400 font-extrabold' : 'text-emerald-400 font-extrabold'}>{faltantesCount}</span> de {totalAlunos}
+          <div className="min-w-0">
+            <div className="text-sm md:text-xl font-black text-white tracking-tight truncate">
+              Faltantes: <span className={faltantesCount > 0 ? 'text-red-400 font-extrabold' : 'text-emerald-400 font-extrabold'}>{faltantesCount}</span> / {totalAlunos}
             </div>
-            <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-              <span>Registro em tempo real via Terminal de Quiosque — Programa APOIA</span>
-              <span>•</span>
+            <div className="text-[10px] md:text-xs text-slate-400 flex items-center gap-2 mt-0.5 truncate">
+              <span className="hidden sm:inline">Terminal de Quiosque — Programa APOIA</span>
               <span className="text-emerald-400 font-semibold">
                 {totalAlunos > 0 ? `${(((totalAlunos - faltantesCount) / totalAlunos) * 100).toFixed(0)}% Presença` : ''}
               </span>
@@ -199,30 +198,30 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
         </div>
 
         {/* Right: Retornar/Cancelar + Sem Faltas + Salvar */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
           <button
             onClick={onBackToDashboard}
-            className="flex items-center gap-2 px-6 py-4 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-extrabold text-base md:text-lg transition-all cursor-pointer border border-slate-600"
+            className="flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-4 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-extrabold text-sm md:text-lg transition-all cursor-pointer border border-slate-600 whitespace-nowrap"
           >
-            <ArrowLeft className="w-6 h-6" />
+            <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
             <span>{temAlteracoes ? '[ Cancelar ]' : '[ Retornar ]'}</span>
           </button>
 
           <button
             onClick={async () => { await onMarcarTodosPresentes(); onBackToDashboard(); }}
             title="Marca a turma com 100% de presença (zero faltas)"
-            className="flex items-center gap-2 px-6 py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-400 font-extrabold text-base md:text-lg transition-all cursor-pointer border-2 border-emerald-500/50"
+            className="flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-400 font-extrabold text-sm md:text-lg transition-all cursor-pointer border-2 border-emerald-500/50 whitespace-nowrap"
           >
-            <CheckCheck className="w-6 h-6" />
+            <CheckCheck className="w-5 h-5 md:w-6 md:h-6" />
             <span>[ Sem Faltas ]</span>
           </button>
 
           {temAlteracoes && (
             <button
               onClick={() => onOpenConfirmModal(faltantes, totalAlunos)}
-              className="flex items-center gap-3 px-8 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-base md:text-lg transition-all cursor-pointer shadow-lg"
+              className="flex items-center gap-2 md:gap-3 px-4 md:px-8 py-2.5 md:py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-sm md:text-lg transition-all cursor-pointer shadow-lg whitespace-nowrap"
             >
-              <CheckCircle2 className="w-6 h-6" />
+              <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
               <span>[ Salvar ]</span>
             </button>
           )}
