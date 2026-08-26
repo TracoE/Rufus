@@ -227,7 +227,6 @@ export default function App() {
           loading={loadingTurmas}
           onSelectTurma={handleSelectTurma}
           onRefresh={loadTurmas}
-          onMarcarTodosPresentes={handleMarcarTodosPresentes}
         />
       ) : selectedTurma ? (
         <GridFaltantes
@@ -236,6 +235,7 @@ export default function App() {
           dataAtualFormatada={dataAtualFormatada}
           onBackToDashboard={() => setCurrentView('dashboard')}
           onOpenConfirmModal={handleOpenConfirmModal}
+          onMarcarTodosPresentes={handleMarcarTodosPresentes}
           isEdicao={isEdicao}
         />
       ) : null}

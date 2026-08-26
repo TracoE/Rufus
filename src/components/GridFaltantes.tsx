@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlunoComFalta, TurmaComChamada } from '../types';
-import { ArrowLeft, Check, CheckCircle2, ShieldAlert, Calendar, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, ShieldAlert, Calendar, AlertCircle, CheckCheck } from 'lucide-react';
 
 interface GridFaltantesProps {
   turma: TurmaComChamada;
@@ -8,6 +8,7 @@ interface GridFaltantesProps {
   dataAtualFormatada: string;
   onBackToDashboard: () => void;
   onOpenConfirmModal: (faltantes: AlunoComFalta[], totalAlunos: number) => void;
+  onMarcarTodosPresentes: () => void;
   isEdicao: boolean;
 }
 
@@ -62,6 +63,7 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
   dataAtualFormatada,
   onBackToDashboard,
   onOpenConfirmModal,
+  onMarcarTodosPresentes,
   isEdicao
 }) => {
   const [alunosState, setAlunosState] = useState<AlunoComFalta[]>(sortAlfabetica(alunosInitial));
@@ -81,6 +83,13 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
   const faltantes = alunosState.filter(a => a.faltante);
   const totalAlunos = alunosState.length;
   const faltantesCount = faltantes.length;
+
+  // Detecta se há alterações não salvas em relação ao estado inicial (para
+  // exibir "Salvar" também quando o professor DESMARCAR uma falta, ex. aluno
+  // que chegou atrasado — aí não há faltantes marcados, mas há mudança a gravar).
+  const initialFaltantePorId = new Map<string, boolean>();
+  sortAlfabetica(alunosInitial).forEach(a => initialFaltantePorId.set(a.id, a.faltante));
+  const temAlteracoes = alunosState.some(a => a.faltante !== initialFaltantePorId.get(a.id));
 
   // Organize vertical list into 5 columns layout (cabe até 40 alunos: 5 × 8)
   const verticalGridData = organizeStudentsVertical5Columns(alunosState);
@@ -189,17 +198,26 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
           </div>
         </div>
 
-        {/* Right: Retornar/Cancelar + Salvar */}
+        {/* Right: Retornar/Cancelar + Sem Faltas + Salvar */}
         <div className="flex items-center gap-3">
           <button
             onClick={onBackToDashboard}
             className="flex items-center gap-2 px-6 py-4 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-extrabold text-base md:text-lg transition-all cursor-pointer border border-slate-600"
           >
             <ArrowLeft className="w-6 h-6" />
-            <span>{faltantesCount > 0 ? '[ Cancelar ]' : '[ Retornar ]'}</span>
+            <span>{temAlteracoes ? '[ Cancelar ]' : '[ Retornar ]'}</span>
           </button>
 
-          {faltantesCount > 0 && (
+          <button
+            onClick={async () => { await onMarcarTodosPresentes(); onBackToDashboard(); }}
+            title="Marca a turma com 100% de presença (zero faltas)"
+            className="flex items-center gap-2 px-6 py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-400 font-extrabold text-base md:text-lg transition-all cursor-pointer border-2 border-emerald-500/50"
+          >
+            <CheckCheck className="w-6 h-6" />
+            <span>[ Sem Faltas ]</span>
+          </button>
+
+          {temAlteracoes && (
             <button
               onClick={() => onOpenConfirmModal(faltantes, totalAlunos)}
               className="flex items-center gap-3 px-8 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-base md:text-lg transition-all cursor-pointer shadow-lg"

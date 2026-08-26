@@ -1,23 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { TurmaComChamada } from '../types';
-import { CheckCircle2, AlertCircle, Clock, Users, Play, ShieldAlert, CheckCheck } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Clock, Users, Play, ShieldAlert } from 'lucide-react';
 
 interface DashboardProps {
   turmas: TurmaComChamada[];
   loading: boolean;
   onSelectTurma: (turma: TurmaComChamada) => void;
   onRefresh: () => void;
-  onMarcarTodosPresentes: (turma: TurmaComChamada) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
   turmas,
   loading,
   onSelectTurma,
-  onRefresh,
-  onMarcarTodosPresentes
+  onRefresh
 }) => {
-  const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
   const realizadas = [...turmas.filter(t => t.realizada)].sort((a, b) => a.nome.localeCompare(b.nome, undefined, { numeric: true }));
   const pendentes = [...turmas.filter(t => !t.realizada)].sort((a, b) => a.nome.localeCompare(b.nome, undefined, { numeric: true }));
 
@@ -169,65 +166,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2">
-                  {pendentes.map(turma => {
-                    const confirmando = confirmandoId === turma.id;
-                    return (
-                      <div
-                        key={turma.id}
-                        className="bg-red-50/50 rounded-md border border-red-200 border-l-4 border-l-red-500 p-1.5 shadow-xs hover:shadow-md transition-all flex flex-col gap-0.5 ring-2 ring-red-500/5"
-                      >
-                        <div className="flex items-center justify-between gap-1">
-                          <h4 className="text-[13px] font-black text-slate-900 tracking-tight leading-tight">
-                            {turma.nome}
-                          </h4>
-                          {!confirmando && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping shrink-0" />
-                          )}
-                        </div>
-                        <div className="flex items-center justify-between gap-1 text-[9px] font-semibold text-slate-500">
-                          <span className="flex items-center gap-0.5 truncate">
-                            <Users className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-                            {turma.total_alunos}
-                          </span>
-                          {confirmando ? (
-                            <span className="flex items-center gap-1">
-                              <span className="text-slate-600">Confirmar?</span>
-                              <button
-                                onClick={() => { setConfirmandoId(null); onMarcarTodosPresentes(turma); }}
-                                className="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                              >
-                                Sim
-                              </button>
-                              <button
-                                onClick={() => setConfirmandoId(null)}
-                                className="px-1.5 py-0.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold"
-                              >
-                                Não
-                              </button>
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <button
-                                onClick={() => onSelectTurma(turma)}
-                                className="flex items-center gap-0.5 text-blue-700 font-bold hover:text-blue-900"
-                              >
-                                <Play className="w-2.5 h-2.5 fill-current" />
-                                Iniciar
-                              </button>
-                              <button
-                                onClick={() => setConfirmandoId(turma.id)}
-                                title="Marcar turma com 100% de presença"
-                                className="flex items-center gap-0.5 text-emerald-700 font-bold hover:text-emerald-900"
-                              >
-                                <CheckCheck className="w-2.5 h-2.5" />
-                                100%
-                              </button>
-                            </span>
-                          )}
-                        </div>
+                  {pendentes.map(turma => (
+                    <div
+                      key={turma.id}
+                      onClick={() => onSelectTurma(turma)}
+                      className="bg-red-50/50 rounded-md border border-red-200 border-l-4 border-l-red-500 p-1.5 shadow-xs hover:shadow-md transition-all cursor-pointer group flex flex-col gap-0.5 ring-2 ring-red-500/5"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className="text-[13px] font-black text-slate-900 tracking-tight group-hover:text-red-600 leading-tight">
+                          {turma.nome}
+                        </h4>
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping shrink-0" />
                       </div>
-                    );
-                  })}
+                      <div className="flex items-center justify-between gap-1 text-[9px] font-semibold text-slate-500">
+                        <span className="flex items-center gap-0.5 truncate">
+                          <Users className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                          {turma.total_alunos}
+                        </span>
+                        <span className="flex items-center gap-0.5 text-blue-700 font-bold shrink-0">
+                          <Play className="w-2.5 h-2.5 fill-current" />
+                          Iniciar
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
