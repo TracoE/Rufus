@@ -1,4 +1,4 @@
-const CACHE = 'rufus-v2';
+const CACHE = 'rufus-v4';
 const PRECACHE = ['/', '/index.html', '/manifest.webmanifest', '/rufus-192.png', '/rufus-512.png', '/rufus-favicon.svg'];
 
 self.addEventListener('install', (event) => {

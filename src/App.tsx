@@ -15,6 +15,7 @@ import { Dashboard } from './components/Dashboard';
 import { GridFaltantes } from './components/GridFaltantes';
 import { ModalConfirmacao } from './components/ModalConfirmacao';
 import { SegmentoModal } from './components/SegmentoModal';
+import { TurmasTerminalModal } from './components/TurmasTerminalModal';
 import { EscolaModal } from './components/EscolaModal';
 import { ToastNotification } from './components/ToastNotification';
 import { AlertTriangle } from 'lucide-react';
@@ -35,6 +36,7 @@ export default function App() {
   // Modal States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
   const [isSegmentoModalOpen, setIsSegmentoModalOpen] = useState<boolean>(false);
+  const [isTurmasTerminalModalOpen, setIsTurmasTerminalModalOpen] = useState<boolean>(false);
 
   // Primeira execução: o terminal ainda não sabe a qual escola pertence.
   // O seletor abre UMA vez (na instalação); depois o terminal fica travado na
@@ -217,6 +219,7 @@ export default function App() {
       <Header
         dataAtualFormatada={dataAtualFormatada}
         onOpenSegmentoModal={() => setIsSegmentoModalOpen(true)}
+        onOpenTurmasTerminalModal={() => setIsTurmasTerminalModalOpen(true)}
         salaId="SALA 102"
         escolaId={escolaId}
       />
@@ -266,6 +269,15 @@ export default function App() {
           loadTurmas();
         }}
       />
+
+      {/* Seletor de turmas deste terminal (multi-seleção) */}
+      {isTurmasTerminalModalOpen && (
+        <TurmasTerminalModal
+          isOpen={isTurmasTerminalModalOpen}
+          onClose={() => setIsTurmasTerminalModalOpen(false)}
+          onSaved={loadTurmas}
+        />
+      )}
 
       {/* Seletor de escola do terminal — abre UMA vez, na instalação (sem login).
           Após escolher, o terminal fica travado na escola; trocar é feito no

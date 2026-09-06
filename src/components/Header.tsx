@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Calendar, Sparkles, ShieldCheck, School, Download } from 'lucide-react';
+import { Calendar, Sparkles, LayoutGrid, School, Download } from 'lucide-react';
 import { LogoRufus } from './LogoRufus';
-import { fetchEscolaNome, getSegmento } from '../lib/supabaseClient';
+import { fetchEscolaNome, getSegmento, getTurmasTerminal } from '../lib/supabaseClient';
 import { usePwaInstall } from '../lib/usePwaInstall';
 
 interface HeaderProps {
   dataAtualFormatada: string;
   onOpenSegmentoModal: () => void;
+  onOpenTurmasTerminalModal: () => void;
   salaId?: string;
   escolaId?: string;
 }
@@ -15,11 +15,13 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   dataAtualFormatada,
   onOpenSegmentoModal,
+  onOpenTurmasTerminalModal,
   salaId = 'SALA 102',
   escolaId
 }) => {
   const [escolaNome, setEscolaNome] = useState<string | null>(null);
   const segmento = getSegmento();
+  const turmasTerminal = getTurmasTerminal();
   const { canInstall, promptInstall } = usePwaInstall();
 
   useEffect(() => {
@@ -71,14 +73,23 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        {/* Link para o Painel Administrativo (acesso pela equipe pedagógica) */}
-        <Link
-          to="/admin/login"
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-800/70 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 transition-all cursor-pointer"
-          title="Painel Administrativo APOIA (Busca Ativa)"
+        {/* Seleção de turmas deste terminal */}
+        <button
+          onClick={onOpenTurmasTerminalModal}
+          className="relative flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-800/70 hover:bg-slate-700/80 text-slate-200 border border-slate-700/60 transition-all cursor-pointer"
+          title={
+            turmasTerminal.length > 0
+              ? `${turmasTerminal.length} turma${turmasTerminal.length > 1 ? 's' : ''} selecionada${turmasTerminal.length > 1 ? 's' : ''} (clique para alterar)`
+              : 'Todas as turmas visíveis — clique para filtrar'
+          }
         >
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-        </Link>
+          <LayoutGrid className="w-4 h-4" />
+          {turmasTerminal.length > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">
+              {turmasTerminal.length}
+            </span>
+          )}
+        </button>
 
         {/* Seletor de Segmento do Terminal (discreto — apenas ícone; F1, F2, M...) */}
         <button

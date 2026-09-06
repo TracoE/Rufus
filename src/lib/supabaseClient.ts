@@ -10,6 +10,7 @@ const LOCAL_STORAGE_KEY_FALTAS = 'kiosk_apoia_faltas_v1';
 const LOCAL_STORAGE_KEY_CREDENTIALS = 'kiosk_apoia_credentials_v1';
 const LOCAL_STORAGE_KEY_ESCOLA = 'kiosk_apoia_escola_id_v1';
 const LOCAL_STORAGE_KEY_SEGMENTO = 'kiosk_apoia_segmento_v1';
+const LOCAL_STORAGE_KEY_TURMAS_TERMINAL = 'kiosk_apoia_turmas_terminal_v1';
 
 // Escola padrão do kiosk RUFUS (tabela escolas do projeto compartilhado)
 const DEFAULT_ESCOLA_ID = 'ada36312-3d8c-4e26-a94d-baf3fe120418';
@@ -91,6 +92,32 @@ export function saveStoredSegmento(segmento: string) {
     }
   } catch (e) {
     console.error('Erro ao salvar segmento', e);
+  }
+}
+
+// IDs das turmas que este terminal deve exibir. Array vazio = todas as turmas.
+export function getTurmasTerminal(): string[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY_TURMAS_TERMINAL);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {
+    console.warn('Erro ao ler turmas do terminal do localStorage', e);
+  }
+  return [];
+}
+
+export function saveTurmasTerminal(turmasIds: string[]) {
+  try {
+    if (turmasIds.length > 0) {
+      localStorage.setItem(LOCAL_STORAGE_KEY_TURMAS_TERMINAL, JSON.stringify(turmasIds));
+    } else {
+      localStorage.removeItem(LOCAL_STORAGE_KEY_TURMAS_TERMINAL);
+    }
+  } catch (e) {
+    console.error('Erro ao salvar turmas do terminal', e);
   }
 }
 
@@ -327,6 +354,12 @@ export async function fetchTurmasComStatus(dataChamadaDateStr?: string): Promise
         turmasVisiveis = (turmasDb || []).filter((t: Turma) => t.mostrar_no_painel !== false);
       }
 
+      // Filtro por turmas selecionadas para este terminal (multi-seleção)
+      const turmasTerminal = getTurmasTerminal();
+      if (turmasTerminal.length > 0) {
+        turmasVisiveis = turmasVisiveis.filter((t: Turma) => turmasTerminal.includes(t.id));
+      }
+
       if (turmasVisiveis.length === 0) {
         // Banco ok, mas nenhuma turma visível para esta escola
         return { data: [], isMock: false };
@@ -405,7 +438,11 @@ export async function fetchTurmasComStatus(dataChamadaDateStr?: string): Promise
 
   // --- LOCAL FALLBACK ENGINE (apenas fora de produção) ---
   const { turmas, alunos, chamadas, faltas } = getLocalData();
-  const turmasVisiveis = turmas.filter(t => t.mostrar_no_painel !== false);
+  let turmasVisiveis = turmas.filter(t => t.mostrar_no_painel !== false);
+  const turmasTerminalLocal = getTurmasTerminal();
+  if (turmasTerminalLocal.length > 0) {
+    turmasVisiveis = turmasVisiveis.filter(t => turmasTerminalLocal.includes(t.id));
+  }
   const chamadasToday = chamadas.filter(c => c.data_chamada === targetDate);
 
   const result: TurmaComChamada[] = turmasVisiveis.map(t => {
@@ -435,6 +472,40 @@ export async function fetchTurmasComStatus(dataChamadaDateStr?: string): Promise
   });
 
   return { data: result, isMock: true };
+}
+
+/**
+ * 1b. Fetch ALL turmas da escola (sem filtro de terminal/multi-seleção).
+ * Usado pelo TurmasTerminalModal para mostrar todas as turmas disponíveis.
+ */
+export async function fetchTodasTurmasEscola(): Promise<Turma[]> {
+  const client = getSupabaseClient();
+  const escolaId = getEscolaId();
+
+  if (client) {
+    try {
+      const { data: turmasDb, error: errT } = await client
+        .from('turmas')
+        .select('*')
+        .eq('escola_id', escolaId);
+      if (errT) throw errT;
+      let turmasVisiveis: Turma[];
+      const temCampoSegmento = (turmasDb || []).some((t: Turma) => 'segmento' in t);
+      const segmento = getSegmento();
+      if (segmento && temCampoSegmento) {
+        turmasVisiveis = (turmasDb || []).filter((t: Turma) => t.segmento === segmento);
+      } else {
+        turmasVisiveis = (turmasDb || []).filter((t: Turma) => t.mostrar_no_painel !== false);
+      }
+      return turmasVisiveis;
+    } catch (err) {
+      console.warn('Erro ao buscar todas as turmas da escola:', err);
+    }
+  }
+
+  // Fallback local
+  const { turmas } = getLocalData();
+  return turmas.filter(t => t.mostrar_no_painel !== false);
 }
 
 /**

@@ -357,6 +357,37 @@ export async function logoutAdmin() {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: fetch all rows from Supabase (handles 1000-row default limit)
+// ---------------------------------------------------------------------------
+
+const PAGE_SIZE = 1000;
+
+async function fetchAll(
+  client: any,
+  table: string,
+  columns: string,
+  eq?: { column: string; value: string },
+  opts?: { order?: { column: string; ascending?: boolean } }
+): Promise<any[]> {
+  const all: any[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    let q = client.from(table).select(columns);
+    if (eq) q = q.eq(eq.column, eq.value);
+    if (opts?.order) q = q.order(opts.order.column, { ascending: opts.order.ascending ?? false });
+    q = q.range(from, from + PAGE_SIZE - 1);
+    const { data, error } = await q;
+    if (error) {
+      console.warn(`fetchAll(${table}) error at offset ${from}:`, error.message);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
+// ---------------------------------------------------------------------------
 // Configuração de gatilhos
 // ---------------------------------------------------------------------------
 
@@ -402,30 +433,33 @@ export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
   const escolaId = getAdminEscolaId();
   if (!client) throw new Error('Supabase não configurado.');
 
-  const [turmasRes, alunosRes, chamadasRes, atestadosRes, registrosRes, config] = await Promise.all([
+  // Usamos fetchAll para superar o limite padrão de 1000 linhas do Supabase.
+  const [turmasRes, alunos, chamadasAll, atestados, registros, config] = await Promise.all([
     fetchTurmasPainel(client, escolaId),
-    client.from('alunos').select('*').eq('escola_id', escolaId),
-    client.from('rufus_chamadas').select('*').eq('escola_id', escolaId),
-    client.from('atestados').select('aluno_id, data_inicio, data_fim').eq('escola_id', escolaId),
-    client.from('busca_ativa_registros').select('*').eq('escola_id', escolaId).order('data_contato', { ascending: false }),
+    fetchAll(client, 'alunos', '*', { column: 'escola_id', value: escolaId }),
+    fetchAll(client, 'rufus_chamadas', '*', { column: 'escola_id', value: escolaId }),
+    fetchAll(client, 'atestados', 'aluno_id, data_inicio, data_fim', { column: 'escola_id', value: escolaId }),
+    fetchAll(client, 'busca_ativa_registros', '*', { column: 'escola_id', value: escolaId }, { order: { column: 'data_contato', ascending: false } }),
     fetchConfig()
   ]);
 
   const turmas = (turmasRes.data || []) as { id: string; nome: string; mostrar_no_painel?: boolean; segmento?: string | null }[];
-  const alunos = (alunosRes.data || []) as Aluno[];
+
   // Acumulativo no ano letivo: considera todas as chamadas desde o início
   // (inclusive meses anteriores) até o mês selecionado. Assim a situação
   // do aluno persiste entre os meses até ser resolvida (encaminhada p/ APOIA).
-  const chamadas = ((chamadasRes.data || []) as { id: string; turma_id: string; data_chamada: string }[])
+  const chamadas = (chamadasAll as { id: string; turma_id: string; data_chamada: string }[])
     .filter(c => c.data_chamada && c.data_chamada.slice(0, 7) <= mes);
-  const atestados = (atestadosRes.data || []) as { aluno_id: string; data_inicio: string; data_fim: string }[];
-  const registros = (registrosRes.data || []) as RegistroBuscaAtiva[];
 
   const chamadaIds = chamadas.map(c => c.id);
   let faltasRaw: { chamada_id: string; aluno_id: string }[] = [];
   if (chamadaIds.length > 0) {
-    const { data } = await client.from('rufus_chamada_faltas').select('chamada_id, aluno_id').in('chamada_id', chamadaIds);
-    faltasRaw = (data || []) as { chamada_id: string; aluno_id: string }[];
+    // A query .in() do Supabase também tem limite de 1000; buscamos em lotes.
+    for (let i = 0; i < chamadaIds.length; i += PAGE_SIZE) {
+      const lote = chamadaIds.slice(i, i + PAGE_SIZE);
+      const { data } = await client.from('rufus_chamada_faltas').select('chamada_id, aluno_id').in('chamada_id', lote);
+      if (data) faltasRaw = faltasRaw.concat(data as { chamada_id: string; aluno_id: string }[]);
+    }
   }
 
   const chamadaPorId = new Map(chamadas.map(c => [c.id, c]));
@@ -494,8 +528,7 @@ function computeStatusKanban(
   const temAndamento = registros.some(r => r.status === 'EM_ANDAMENTO');
   const semSucesso = registros.filter(r => r.status === 'SEM_SUCESSO').length;
 
-  if (registros.some(r => r.status === 'RESOLVIDO')) return 'RESOLVIDO';
-
+  // ---- Faltas acima do gatilho têm prioridade sobre qualquer status anterior ----
   if (inj >= cfg.limite_faltas_apoia) {
     if (temAndamento && semSucesso < cfg.limite_tentativas_apoia) return 'EM_BUSCA_ATIVA';
     return 'PRONTO_PARA_APOIA';
@@ -504,6 +537,9 @@ function computeStatusKanban(
   if (temAndamento) return 'EM_BUSCA_ATIVA';
 
   if (inj >= cfg.limite_faltas_atencao) return 'EM_ATENCAO';
+
+  // ---- Abaixo do gatilho: verificar registros anteriores ----
+  if (registros.some(r => r.status === 'RESOLVIDO')) return 'RESOLVIDO';
 
   // Teve faltas (justificadas ou abaixo do gatilho) mas já houve intervenção → arquivado
   if ((inj > 0 || just > 0) && registros.length > 0) return 'RESOLVIDO';
@@ -524,11 +560,11 @@ export async function fetchDossie(alunoId: string, mes: string): Promise<DadosDo
   const escolaId = getAdminEscolaId();
   if (!client) throw new Error('Supabase não configurado.');
 
-  const [alunoRes, turmasRes, chamadasRes, atestadosRes, registrosRes] = await Promise.all([
+  const [alunoRes, turmasRes, chamadasAll, atestados, registrosRes] = await Promise.all([
     client.from('alunos').select('*').eq('id', alunoId).single(),
     client.from('turmas').select('id, nome').eq('escola_id', escolaId),
-    client.from('rufus_chamadas').select('*').eq('escola_id', escolaId),
-    client.from('atestados').select('aluno_id, data_inicio, data_fim').eq('escola_id', escolaId),
+    fetchAll(client, 'rufus_chamadas', '*', { column: 'escola_id', value: escolaId }),
+    fetchAll(client, 'atestados', 'aluno_id, data_inicio, data_fim', { column: 'escola_id', value: escolaId }),
     client.from('busca_ativa_registros').select('*').eq('aluno_id', alunoId).order('data_contato', { ascending: false })
   ]);
 
@@ -537,9 +573,8 @@ export async function fetchDossie(alunoId: string, mes: string): Promise<DadosDo
   const aluno = alunoRes.data as Aluno;
   const turmas = (turmasRes.data || []) as { id: string; nome: string }[];
   const turma = turmas.find(t => t.id === aluno.turma_id);
-  const chamadas = ((chamadasRes.data || []) as { id: string; turma_id: string; data_chamada: string }[])
+  const chamadas = (chamadasAll as { id: string; turma_id: string; data_chamada: string }[])
     .filter(c => c.data_chamada && c.data_chamada.slice(0, 7) <= mes && c.turma_id === aluno.turma_id);
-  const atestados = (atestadosRes.data || []) as { aluno_id: string; data_inicio: string; data_fim: string }[];
 
   const chamadaIds = chamadas.map(c => c.id);
   let faltasRaw: { chamada_id: string }[] = [];
