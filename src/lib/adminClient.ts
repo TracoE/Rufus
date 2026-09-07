@@ -454,10 +454,17 @@ export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
   const chamadaIds = chamadas.map(c => c.id);
   let faltasRaw: { chamada_id: string; aluno_id: string }[] = [];
   if (chamadaIds.length > 0) {
-    // A query .in() do Supabase também tem limite de 1000; buscamos em lotes.
-    for (let i = 0; i < chamadaIds.length; i += PAGE_SIZE) {
-      const lote = chamadaIds.slice(i, i + PAGE_SIZE);
-      const { data } = await client.from('rufus_chamada_faltas').select('chamada_id, aluno_id').in('chamada_id', lote);
+    // O .in() vai na URL: lotes de 1000 UUIDs (~40KB) estouram o limite e a
+    // requisição falha em silêncio, sumindo com as faltas do lote (ex. agosto).
+    // Lotes pequenos (150) + log de erro evitam alunos "fantasma" no kanban.
+    const FALTAS_LOTE = 150;
+    for (let i = 0; i < chamadaIds.length; i += FALTAS_LOTE) {
+      const lote = chamadaIds.slice(i, i + FALTAS_LOTE);
+      const { data, error } = await client.from('rufus_chamada_faltas').select('chamada_id, aluno_id').in('chamada_id', lote);
+      if (error) {
+        console.warn(`fetchKanbanData(faltas) erro no lote ${i / FALTAS_LOTE + 1}:`, error.message);
+        continue;
+      }
       if (data) faltasRaw = faltasRaw.concat(data as { chamada_id: string; aluno_id: string }[]);
     }
   }
@@ -579,8 +586,16 @@ export async function fetchDossie(alunoId: string, mes: string): Promise<DadosDo
   const chamadaIds = chamadas.map(c => c.id);
   let faltasRaw: { chamada_id: string }[] = [];
   if (chamadaIds.length > 0) {
-    const { data } = await client.from('rufus_chamada_faltas').select('chamada_id').eq('aluno_id', alunoId).in('chamada_id', chamadaIds);
-    faltasRaw = (data || []) as { chamada_id: string }[];
+    const FALTAS_LOTE = 150;
+    for (let i = 0; i < chamadaIds.length; i += FALTAS_LOTE) {
+      const lote = chamadaIds.slice(i, i + FALTAS_LOTE);
+      const { data, error } = await client.from('rufus_chamada_faltas').select('chamada_id').eq('aluno_id', alunoId).in('chamada_id', lote);
+      if (error) {
+        console.warn(`fetchDossie(faltas) erro no lote ${i / FALTAS_LOTE + 1}:`, error.message);
+        continue;
+      }
+      faltasRaw = faltasRaw.concat(((data || []) as { chamada_id: string }[]));
+    }
   }
 
   const faltasSet = new Set(faltasRaw.map(f => f.chamada_id));

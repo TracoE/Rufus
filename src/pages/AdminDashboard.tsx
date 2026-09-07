@@ -152,7 +152,8 @@ export const AdminDashboard: React.FC = () => {
 
   const dataHoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-  // Aplica filtros
+  // Aplica filtros (busca ignora acentos: THAISA encontra THAÍSA)
+  const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const cardsFiltrados = (data?.cards || []).filter(c => {
     if (turmaId && c.aluno.turma_id !== turmaId) return false;
     if (segmentoFiltro) {
@@ -160,7 +161,7 @@ export const AdminDashboard: React.FC = () => {
       if (segTurma !== segmentoFiltro) return false;
     }
     if (alerta !== 'TODOS' && c.status !== alerta) return false;
-    if (busca && !c.aluno.nome.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (busca && !norm(c.aluno.nome).includes(norm(busca))) return false;
     return true;
   });
 
