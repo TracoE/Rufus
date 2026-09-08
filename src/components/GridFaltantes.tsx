@@ -208,9 +208,14 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
           </button>
 
           <button
-            onClick={async () => { await onMarcarTodosPresentes(); onBackToDashboard(); }}
-            title="Marca a turma com 100% de presença (zero faltas)"
-            className="flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-400 font-extrabold text-sm md:text-lg transition-all cursor-pointer border-2 border-emerald-500/50 whitespace-nowrap"
+            onClick={async () => { if (faltantesCount > 0) return; await onMarcarTodosPresentes(); onBackToDashboard(); }}
+            disabled={faltantesCount > 0}
+            title={faltantesCount > 0 ? "Desmarque os faltantes para usar o Sem Faltas" : "Marca a turma com 100% de presença (zero faltas)"}
+            className={`flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-4 rounded-xl font-extrabold text-sm md:text-lg transition-all border-2 whitespace-nowrap ${
+              faltantesCount > 0
+                ? 'bg-slate-800/50 text-slate-500 border-slate-700/50 opacity-40 cursor-not-allowed'
+                : 'bg-slate-800 hover:bg-slate-700 active:scale-95 text-emerald-400 border-emerald-500/50 cursor-pointer'
+            }`}
           >
             <CheckCheck className="w-5 h-5 md:w-6 md:h-6" />
             <span>[ Sem Faltas ]</span>
