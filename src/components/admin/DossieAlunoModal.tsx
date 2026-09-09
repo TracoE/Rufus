@@ -19,6 +19,7 @@ interface DossieAlunoModalProps {
   isOpen: boolean;
   card: DadosKanbanAluno | null;
   mes: string;
+  todasFaltas?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -38,7 +39,7 @@ const ABAS: { id: AbaDossie; rotulo: string; icon: React.ReactNode }[] = [
   { id: 'timeline', rotulo: 'Linha do Tempo', icon: <FileText className="w-3.5 h-3.5" /> }
 ];
 
-export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card, mes, onClose, onSaved }) => {
+export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card, mes, todasFaltas, onClose, onSaved }) => {
   const [dossie, setDossie] = useState<DadosDossie | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,11 +66,11 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
     setObservacoes('');
     setStatusRegistro('EM_ANDAMENTO');
     setAnexo(null);
-    fetchDossie(card.aluno.id, mes)
+    fetchDossie(card.aluno.id, mes, { todasFaltas })
       .then(setDossie)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, [isOpen, card, mes]);
+  }, [isOpen, card, mes, todasFaltas]);
 
   if (!isOpen || !card) return null;
 
@@ -104,7 +105,7 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
       document.getElementById('anexo-input') && ((document.getElementById('anexo-input') as HTMLInputElement).value = '');
 
       // Reload dossier + notify parent
-      const novo = await fetchDossie(card.aluno.id, mes);
+      const novo = await fetchDossie(card.aluno.id, mes, { todasFaltas });
       setDossie(novo);
       setAba('timeline');
       onSaved();
@@ -119,7 +120,7 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
     if (!window.confirm('Excluir este registro de busca ativa?')) return;
     try {
       await excluirRegistroBuscaAtiva(id);
-      const novo = await fetchDossie(card.aluno.id, mes);
+      const novo = await fetchDossie(card.aluno.id, mes, { todasFaltas });
       setDossie(novo);
       onSaved();
     } catch (err: any) {
@@ -176,7 +177,7 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
               {/* Resumo */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="bg-white border border-slate-200 rounded-lg px-3 py-1.5">
-                  <span className="text-[9px] font-bold uppercase text-slate-500">Faltas (até {mes})</span>
+                  <span className="text-[9px] font-bold uppercase text-slate-500">Faltas ({todasFaltas ? `todas até ${mes}` : 'últimos 30 dias'})</span>
                   <div className="text-lg font-black text-slate-900 leading-tight">{dossie?.faltas.length || 0}</div>
                 </div>
                 <div className="bg-white border border-slate-200 rounded-lg px-3 py-1.5">
@@ -219,7 +220,7 @@ export const DossieAlunoModal: React.FC<DossieAlunoModalProps> = ({ isOpen, card
                 <div>
                   {dossie && dossie.faltas.length === 0 ? (
                     <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg text-xs font-semibold text-emerald-700">
-                      Nenhuma falta registrada neste mês para este aluno.
+                      Nenhuma falta registrada {todasFaltas ? 'no período acumulado' : 'nos últimos 30 dias'} para este aluno.
                     </div>
                   ) : (
                     <div className="border border-slate-200 rounded-lg overflow-hidden">

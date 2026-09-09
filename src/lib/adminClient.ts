@@ -415,6 +415,21 @@ export interface DadosKanban {
   cards: DadosKanbanAluno[];
   config: ConfigRufus;
   turmas: { id: string; nome: string; mostrar_no_painel?: boolean; segmento?: string | null }[];
+  periodo: { inicio: string; fim: string; todasFaltas: boolean };
+}
+
+// Janela padrão de encaminhamento: últimos 30 dias anteriores a hoje.
+// Retorna { inicio, fim } em YYYY-MM-DD (comparável por string com data_chamada).
+export function getJanelaUltimos30Dias(): { inicio: string; fim: string } {
+  const fim = getLocalDateStr();
+  const d = new Date(`${fim}T12:00:00`);
+  d.setDate(d.getDate() - 30);
+  const inicio = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { inicio, fim };
+}
+
+export interface OpcoesPeriodoFaltas {
+  todasFaltas?: boolean;
 }
 
 // Busca as turmas da escola. Se a coluna `segmento` ainda não existir no banco
@@ -428,10 +443,13 @@ async function fetchTurmasPainel(client: any, escolaId: string): Promise<{ data:
   return res;
 }
 
-export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
+export async function fetchKanbanData(mes: string, opts?: OpcoesPeriodoFaltas): Promise<DadosKanban> {
   const client = getSupabaseClient();
   const escolaId = getAdminEscolaId();
   if (!client) throw new Error('Supabase não configurado.');
+
+  const todasFaltas = opts?.todasFaltas === true;
+  const janela = getJanelaUltimos30Dias();
 
   // Usamos fetchAll para superar o limite padrão de 1000 linhas do Supabase.
   const [turmasRes, alunos, chamadasAll, atestados, registros, config] = await Promise.all([
@@ -445,11 +463,16 @@ export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
 
   const turmas = (turmasRes.data || []) as { id: string; nome: string; mostrar_no_painel?: boolean; segmento?: string | null }[];
 
-  // Acumulativo no ano letivo: considera todas as chamadas desde o início
-  // (inclusive meses anteriores) até o mês selecionado. Assim a situação
-  // do aluno persiste entre os meses até ser resolvida (encaminhada p/ APOIA).
+  // Encaminhamento para os status (Em Atenção / Busca Ativa / Pronto p/ APOIA):
+  // por padrão considera SOMENTE as faltas dos últimos 30 dias anteriores a hoje.
+  // Se `todasFaltas` estiver marcado, considera todas as faltas (acumulativo
+  // desde o início até o mês selecionado), independentemente do período.
   const chamadas = (chamadasAll as { id: string; turma_id: string; data_chamada: string }[])
-    .filter(c => c.data_chamada && c.data_chamada.slice(0, 7) <= mes);
+    .filter(c => {
+      if (!c.data_chamada) return false;
+      if (todasFaltas) return c.data_chamada.slice(0, 7) <= mes;
+      return c.data_chamada >= janela.inicio && c.data_chamada <= janela.fim;
+    });
 
   const chamadaIds = chamadas.map(c => c.id);
   let faltasRaw: { chamada_id: string; aluno_id: string }[] = [];
@@ -523,7 +546,7 @@ export async function fetchKanbanData(mes: string): Promise<DadosKanban> {
     });
   });
 
-  return { cards, config, turmas };
+  return { cards, config, turmas, periodo: { inicio: janela.inicio, fim: janela.fim, todasFaltas } };
 }
 
 function computeStatusKanban(
@@ -562,10 +585,13 @@ function computeStatusKanban(
 // Dossiê do aluno
 // ---------------------------------------------------------------------------
 
-export async function fetchDossie(alunoId: string, mes: string): Promise<DadosDossie> {
+export async function fetchDossie(alunoId: string, mes: string, opts?: OpcoesPeriodoFaltas): Promise<DadosDossie> {
   const client = getSupabaseClient();
   const escolaId = getAdminEscolaId();
   if (!client) throw new Error('Supabase não configurado.');
+
+  const todasFaltas = opts?.todasFaltas === true;
+  const janela = getJanelaUltimos30Dias();
 
   const [alunoRes, turmasRes, chamadasAll, atestados, registrosRes] = await Promise.all([
     client.from('alunos').select('*').eq('id', alunoId).single(),
@@ -581,7 +607,11 @@ export async function fetchDossie(alunoId: string, mes: string): Promise<DadosDo
   const turmas = (turmasRes.data || []) as { id: string; nome: string }[];
   const turma = turmas.find(t => t.id === aluno.turma_id);
   const chamadas = (chamadasAll as { id: string; turma_id: string; data_chamada: string }[])
-    .filter(c => c.data_chamada && c.data_chamada.slice(0, 7) <= mes && c.turma_id === aluno.turma_id);
+    .filter(c => {
+      if (!c.data_chamada || c.turma_id !== aluno.turma_id) return false;
+      if (todasFaltas) return c.data_chamada.slice(0, 7) <= mes;
+      return c.data_chamada >= janela.inicio && c.data_chamada <= janela.fim;
+    });
 
   const chamadaIds = chamadas.map(c => c.id);
   let faltasRaw: { chamada_id: string }[] = [];

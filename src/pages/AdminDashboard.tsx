@@ -49,6 +49,8 @@ export const AdminDashboard: React.FC = () => {
   const [segmentoFiltro, setSegmentoFiltro] = useState('');
   const [alerta, setAlerta] = useState<FiltroStatus>('TODOS');
   const [busca, setBusca] = useState('');
+  // Por padrão os status consideram só os últimos 30 dias; marcado = todas as faltas.
+  const [todasFaltas, setTodasFaltas] = useState(false);
 
   // Modais
   const [dossieCard, setDossieCard] = useState<DadosKanbanAluno | null>(null);
@@ -88,11 +90,11 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const carregar = useCallback(async (mesRef: string) => {
+  const carregar = useCallback(async (mesRef: string, todasFaltasRef?: boolean) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchKanbanData(mesRef);
+      const result = await fetchKanbanData(mesRef, { todasFaltas: todasFaltasRef });
       setData(result);
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar dados do painel.');
@@ -102,8 +104,8 @@ export const AdminDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    carregar(mes);
-  }, [mes, carregar]);
+    carregar(mes, todasFaltas);
+  }, [mes, todasFaltas, carregar]);
 
   useEffect(() => {
     if (!getAdminSession()) {
@@ -144,7 +146,7 @@ export const AdminDashboard: React.FC = () => {
     setAdminEscolaId(escolaId);
     setSessao(prev => prev ? { ...prev, escola_id: escolaId } : prev);
     setEscolaNome(null);
-    carregar(mes);
+    carregar(mes, todasFaltas);
   };
 
   const conectado = conn?.isConnected === true;
@@ -333,13 +335,30 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <button
-              onClick={() => carregar(mes)}
+              onClick={() => carregar(mes, todasFaltas)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-white text-[11px] font-extrabold transition-all cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               Atualizar
             </button>
+
+            <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-slate-50 text-[11px] font-bold text-slate-700 cursor-pointer select-none" title="Quando marcado, os status consideram todas as faltas acumuladas até o mês selecionado, sem filtro de período.">
+              <input
+                type="checkbox"
+                checked={todasFaltas}
+                onChange={e => setTodasFaltas(e.target.checked)}
+                className="w-3.5 h-3.5 accent-slate-900 cursor-pointer"
+              />
+              Mostrar todas as faltas (ignorar últimos 30 dias)
+            </label>
           </div>
+          {data?.periodo && (
+            <div className="px-3 pb-2 text-[11px] font-semibold text-slate-500">
+              {data.periodo.todasFaltas
+                ? `Status calculados com todas as faltas acumuladas até ${mes.slice(5, 7)}/${mes.slice(0, 4)}.`
+                : `Status calculados com faltas de ${data.periodo.inicio.slice(8, 10)}/${data.periodo.inicio.slice(5, 7)}/${data.periodo.inicio.slice(0, 4)} a ${data.periodo.fim.slice(8, 10)}/${data.periodo.fim.slice(5, 7)}/${data.periodo.fim.slice(0, 4)} (últimos 30 dias).`}
+            </div>
+          )}
         </div>
 
         {error && (
@@ -474,13 +493,15 @@ export const AdminDashboard: React.FC = () => {
         isOpen={!!dossieCard}
         card={dossieCard}
         mes={mes}
+        todasFaltas={todasFaltas}
         onClose={() => setDossieCard(null)}
-        onSaved={() => carregar(mes)}
+        onSaved={() => carregar(mes, todasFaltas)}
       />
       <RelatorioApoiaModal
         isOpen={!!relatorioCard}
         card={relatorioCard}
         mes={mes}
+        todasFaltas={todasFaltas}
         onClose={() => setRelatorioCard(null)}
       />
 
@@ -490,7 +511,7 @@ export const AdminDashboard: React.FC = () => {
         onClose={() => setSupabaseConfigAberta(false)}
         onConfigChanged={() => {
           testSupabaseConnection().then(setConn);
-          carregar(mes);
+          carregar(mes, todasFaltas);
         }}
       />
 

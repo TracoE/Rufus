@@ -6,10 +6,11 @@ interface RelatorioApoiaModalProps {
   isOpen: boolean;
   card: { aluno: { id: string; nome: string; matricula?: string }; turma_nome: string } | null;
   mes: string;
+  todasFaltas?: boolean;
   onClose: () => void;
 }
 
-export const RelatorioApoiaModal: React.FC<RelatorioApoiaModalProps> = ({ isOpen, card, mes, onClose }) => {
+export const RelatorioApoiaModal: React.FC<RelatorioApoiaModalProps> = ({ isOpen, card, mes, todasFaltas, onClose }) => {
   const [dossie, setDossie] = useState<DadosDossie | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,11 +19,11 @@ export const RelatorioApoiaModal: React.FC<RelatorioApoiaModalProps> = ({ isOpen
     if (!isOpen || !card) return;
     setLoading(true);
     setError(null);
-    fetchDossie(card.aluno.id, mes)
+    fetchDossie(card.aluno.id, mes, { todasFaltas })
       .then(setDossie)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, [isOpen, card, mes]);
+  }, [isOpen, card, mes, todasFaltas]);
 
   if (!isOpen || !card) return null;
 
@@ -101,7 +102,7 @@ export const RelatorioApoiaModal: React.FC<RelatorioApoiaModalProps> = ({ isOpen
                 </div>
                 <div>
                   <span className="text-[11px] font-bold uppercase text-slate-500">Faltas não justificadas</span>
-                  <p className="font-black text-red-700 text-lg">{faltasInjust} no mês</p>
+                  <p className="font-black text-red-700 text-lg">{faltasInjust} {todasFaltas ? 'no acumulado' : 'nos últimos 30 dias'}</p>
                 </div>
               </div>
 
@@ -111,7 +112,7 @@ export const RelatorioApoiaModal: React.FC<RelatorioApoiaModalProps> = ({ isOpen
                   <FileText className="w-4 h-4 text-red-700" /> Tabela de Faltas Registradas
                 </h4>
                 {!dossie || dossie.faltas.length === 0 ? (
-                  <p className="text-sm text-slate-500">Nenhuma falta registrada no mês.</p>
+                  <p className="text-sm text-slate-500">Nenhuma falta registrada {todasFaltas ? 'no período acumulado' : 'nos últimos 30 dias'}.</p>
                 ) : (
                   <table className="w-full border-collapse text-sm border border-slate-300">
                     <thead>

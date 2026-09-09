@@ -19,7 +19,7 @@ const COLUNAS: { status: StatusKanban; titulo: string; descricao: string; cor: {
   {
     status: 'EM_ATENCAO',
     titulo: 'EM ATENÇÃO',
-    descricao: 'Faltas no mês atingiram o gatilho configurado',
+    descricao: 'Faltas nos últimos 30 dias atingiram o gatilho configurado',
     cor: { header: 'bg-amber-100 text-amber-800 border-amber-200', badge: 'bg-amber-50 text-amber-700 border-amber-200', border: 'border-amber-200', dot: 'bg-amber-500' }
   },
   {
