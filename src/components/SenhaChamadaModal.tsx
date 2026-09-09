@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Lock, X, Delete, AlertCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Lock, X, AlertCircle } from 'lucide-react';
 
 interface SenhaChamadaModalProps {
   isOpen: boolean;
@@ -9,8 +9,6 @@ interface SenhaChamadaModalProps {
   onCancelar: () => void;
 }
 
-const TECLAS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'apagar'];
-
 export const SenhaChamadaModal: React.FC<SenhaChamadaModalProps> = ({
   isOpen,
   turmaNome,
@@ -18,29 +16,24 @@ export const SenhaChamadaModal: React.FC<SenhaChamadaModalProps> = ({
   onSucesso,
   onCancelar
 }) => {
-  const [digitos, setDigitos] = useState('');
+  const [digitos, setDigitos] = useState<string[]>(['', '', '', '']);
   const [erro, setErro] = useState(false);
+  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     if (isOpen) {
-      setDigitos('');
+      setDigitos(['', '', '', '']);
       setErro(false);
+      // Cursor já na primeira posição
+      setTimeout(() => inputsRef.current[0]?.focus(), 50);
     }
   }, [isOpen, turmaNome]);
 
   if (!isOpen) return null;
 
-  const teclar = (t: string) => {
-    if (t === 'apagar') {
-      setDigitos(prev => prev.slice(0, -1));
-      return;
-    }
-    if (!t || digitos.length >= 4) return;
-    const novo = digitos + t;
-    setDigitos(novo);
-    setErro(false);
-    if (novo.length === 4) {
-      if (novo === senhaCorreta) {
+  const conferir = (lista: string[]) => {
+    if (lista.every(d => d !== '')) {
+      if (lista.join('') === senhaCorreta) {
         onSucesso();
       } else {
         setErro(true);
@@ -48,9 +41,55 @@ export const SenhaChamadaModal: React.FC<SenhaChamadaModalProps> = ({
     }
   };
 
-  const tentarNovamente = () => {
-    setDigitos('');
+  const handleChange = (i: number, valor: string) => {
+    const d = valor.replace(/\D/g, '').slice(-1);
+    const lista = [...digitos];
+    lista[i] = d;
+    setDigitos(lista);
     setErro(false);
+    if (d && i < 3) {
+      inputsRef.current[i + 1]?.focus();
+    }
+    conferir(lista);
+  };
+
+  const handleKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const lista = [...digitos];
+      if (lista[i]) {
+        lista[i] = '';
+        setDigitos(lista);
+      } else if (i > 0) {
+        lista[i - 1] = '';
+        setDigitos(lista);
+        inputsRef.current[i - 1]?.focus();
+      }
+      setErro(false);
+    } else if (e.key === 'ArrowLeft' && i > 0) {
+      inputsRef.current[i - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && i < 3) {
+      inputsRef.current[i + 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const nums = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    if (!nums) return;
+    const lista = [' ', ' ', ' ', ' '].map((_, i) => nums[i] || '');
+    const completa: string[] = [lista[0] || '', lista[1] || '', lista[2] || '', lista[3] || ''];
+    setDigitos(completa);
+    setErro(false);
+    const primeiroVazio = completa.findIndex(d => d === '');
+    inputsRef.current[primeiroVazio === -1 ? 3 : primeiroVazio]?.focus();
+    conferir(completa);
+  };
+
+  const tentarNovamente = () => {
+    setDigitos(['', '', '', '']);
+    setErro(false);
+    inputsRef.current[0]?.focus();
   };
 
   return (
@@ -76,17 +115,27 @@ export const SenhaChamadaModal: React.FC<SenhaChamadaModalProps> = ({
         </div>
 
         <div className="p-6 space-y-4">
-          {/* Visor dos dígitos */}
+          {/* Caixas de digitação */}
           <div className="flex items-center justify-center gap-3">
-            {[0, 1, 2, 3].map(i => (
-              <div
+            {digitos.map((d, i) => (
+              <input
                 key={i}
-                className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-black transition-all ${
-                  erro ? 'border-red-400 bg-red-50 text-red-600' : 'border-slate-300 bg-slate-50 text-slate-900'
+                ref={el => { inputsRef.current[i] = el; }}
+                type="password"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={1}
+                value={d}
+                onChange={e => handleChange(i, e.target.value)}
+                onKeyDown={e => handleKeyDown(i, e)}
+                onPaste={handlePaste}
+                onFocus={e => e.target.select()}
+                className={`w-12 h-14 rounded-xl border-2 text-center text-2xl font-black outline-none transition-all ${
+                  erro
+                    ? 'border-red-400 bg-red-50 text-red-600'
+                    : 'border-slate-300 bg-slate-50 text-slate-900 focus:border-slate-900'
                 }`}
-              >
-                {digitos[i] ? '•' : ''}
-              </div>
+              />
             ))}
           </div>
 
@@ -117,30 +166,12 @@ export const SenhaChamadaModal: React.FC<SenhaChamadaModalProps> = ({
               </button>
             </div>
           ) : (
-            <>
-              {/* Teclado numérico (toque) */}
-              <div className="grid grid-cols-3 gap-2">
-                {TECLAS.map((t, i) =>
-                  t === '' ? (
-                    <div key={i} />
-                  ) : (
-                    <button
-                      key={i}
-                      onClick={() => teclar(t)}
-                      className="py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-xl cursor-pointer transition-all active:scale-95 flex items-center justify-center"
-                    >
-                      {t === 'apagar' ? <Delete className="w-6 h-6" /> : t}
-                    </button>
-                  )
-                )}
-              </div>
-              <button
-                onClick={onCancelar}
-                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 font-bold text-xs cursor-pointer transition-all"
-              >
-                Cancelar
-              </button>
-            </>
+            <button
+              onClick={onCancelar}
+              className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 font-bold text-xs cursor-pointer transition-all"
+            >
+              Cancelar
+            </button>
           )}
         </div>
       </div>
