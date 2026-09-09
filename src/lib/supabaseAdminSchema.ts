@@ -2,7 +2,8 @@ export const ADMIN_SQL_SCRIPT = `-- ============================================
 -- CAMADA ADMINISTRATIVA / PEDAGÓGICA DO RUFUS
 -- Painel de Busca Ativa do Programa APOIA
 -- Projeto compartilhado com o JustificaE — NÃO altera tabelas existentes.
--- Cria apenas: rufus_config, busca_ativa_registros e o bucket de anexos.
+-- Cria apenas: rufus_config, busca_ativa_registros, rufus_senhas_chamada,
+-- rufus_codigos_acesso e o bucket de anexos.
 -- Autenticação: conta Google (Supabase Auth, padrão JustificaE). A escola é
 -- resolvida pelas tabelas do JustificaE (professores / escolas.email_admin).
 -- Cole este script no SQL Editor do seu projeto Supabase.
@@ -41,8 +42,7 @@ CREATE TABLE IF NOT EXISTS rufus_config (
 INSERT INTO rufus_config (chave, valor, descricao) VALUES
   ('limite_faltas_atencao', '3', 'Faltas acumuladas no mês que acionam a coluna EM ATENÇÃO'),
   ('limite_faltas_apoia', '5', 'Faltas acumuladas no mês que acionam PRONTO PARA APOIA'),
-  ('limite_tentativas_apoia', '3', 'Tentativas de contato sem sucesso que esgotam a busca ativa'),
-  ('senha_chamada', '', 'Senha de 4 dígitos exigida no terminal ao abrir a chamada (vazio = sem senha)')
+  ('limite_tentativas_apoia', '3', 'Tentativas de contato sem sucesso que esgotam a busca ativa')
 ON CONFLICT (chave) DO NOTHING;
 
 ALTER TABLE rufus_config ENABLE ROW LEVEL SECURITY;
@@ -210,4 +210,43 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.rufus_gerar_codigo_escola(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.rufus_gerar_codigo_escola(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rufus_validar_codigo_escola(TEXT) TO anon, authenticated, service_role;
+
+-- 7. SENHA DA CHAMADA POR ESCOLA (terminal de sala de aula).
+-- Cada escola tem sua senha de 4 dígitos, exigida no terminal sempre que uma
+-- turma for selecionada. Sem linha (ou senha vazia) = terminal sem senha.
+CREATE TABLE IF NOT EXISTS rufus_senhas_chamada (
+  escola_id UUID PRIMARY KEY REFERENCES escolas(id) ON DELETE CASCADE,
+  senha TEXT NOT NULL DEFAULT '',
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE rufus_senhas_chamada ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Kiosk leitura senha chamada" ON rufus_senhas_chamada;
+CREATE POLICY "Kiosk leitura senha chamada" ON rufus_senhas_chamada FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Rufus senha chamada escrita admin" ON rufus_senhas_chamada;
+CREATE POLICY "Rufus senha chamada escrita admin" ON rufus_senhas_chamada FOR ALL
+USING (
+  is_rufus_admin() AND (
+    escola_id IN (SELECT id FROM escolas WHERE email_admin = (auth.jwt() ->> 'email'))
+    OR (auth.jwt() ->> 'email') = 'traco.e.sc@gmail.com'
+    OR EXISTS (
+      SELECT 1 FROM professores p
+      WHERE (p.email = (auth.jwt() ->> 'email') OR p.email_google = (auth.jwt() ->> 'email'))
+        AND p.is_superadmin = true
+    )
+  )
+)
+WITH CHECK (
+  is_rufus_admin() AND (
+    escola_id IN (SELECT id FROM escolas WHERE email_admin = (auth.jwt() ->> 'email'))
+    OR (auth.jwt() ->> 'email') = 'traco.e.sc@gmail.com'
+    OR EXISTS (
+      SELECT 1 FROM professores p
+      WHERE (p.email = (auth.jwt() ->> 'email') OR p.email_google = (auth.jwt() ->> 'email'))
+        AND p.is_superadmin = true
+    )
+  )
+);
 `;

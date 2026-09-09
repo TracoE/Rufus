@@ -230,15 +230,15 @@ export async function updateTurmaSegmento(turmaId: string, segmento: string): Pr
   }
 }
 
-// Senha de 4 dígitos exigida pelo terminal ao abrir a chamada de uma turma.
-// Leitura pública (rufus_config); retorna '' quando não configurada ou em erro.
+// Senha de 4 dígitos da ESCOLA deste terminal, exigida ao abrir a chamada.
+// Leitura pública (rufus_senhas_chamada); retorna '' quando não configurada ou em erro.
 export async function fetchSenhaChamadaTerminal(): Promise<string> {
   const client = getSupabaseClient();
   if (!client) return '';
   try {
-    const { data, error } = await client.from('rufus_config').select('valor').eq('chave', 'senha_chamada').limit(1);
+    const { data, error } = await client.from('rufus_senhas_chamada').select('senha').eq('escola_id', getEscolaId()).limit(1);
     if (error) return '';
-    const valor = (data as { valor: string }[] | null)?.[0]?.valor || '';
+    const valor = (data as { senha: string }[] | null)?.[0]?.senha || '';
     return /^\d{4}$/.test(valor.trim()) ? valor.trim() : '';
   } catch (err) {
     console.warn('Falha ao ler senha da chamada no terminal:', err);

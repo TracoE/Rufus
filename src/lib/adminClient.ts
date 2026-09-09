@@ -408,21 +408,22 @@ export async function fetchConfig(): Promise<ConfigRufus> {
 }
 
 // ---------------------------------------------------------------------------
-// Senha da chamada (terminal de sala de aula)
-// 4 dígitos numéricos; vazio = terminal sem senha.
+// Senha da chamada (terminal de sala de aula) — uma por escola.
+// 4 dígitos numéricos; sem linha (ou vazio) = terminal sem senha.
 // ---------------------------------------------------------------------------
 
 export function senhaChamadaValida(senha: string): boolean {
   return senha === '' || /^\d{4}$/.test(senha);
 }
 
-export async function fetchSenhaChamada(): Promise<string> {
+export async function fetchSenhaChamada(escolaId?: string): Promise<string> {
   const client = getSupabaseClient();
-  if (!client) return '';
+  const alvo = escolaId || getAdminEscolaId();
+  if (!client || !alvo) return '';
   try {
-    const { data, error } = await client.from('rufus_config').select('valor').eq('chave', 'senha_chamada').limit(1);
+    const { data, error } = await client.from('rufus_senhas_chamada').select('senha').eq('escola_id', alvo).limit(1);
     if (error) return '';
-    const valor = (data as { valor: string }[] | null)?.[0]?.valor || '';
+    const valor = (data as { senha: string }[] | null)?.[0]?.senha || '';
     return /^\d{4}$/.test(valor.trim()) ? valor.trim() : '';
   } catch (e) {
     console.warn('Falha ao ler senha da chamada', e);
@@ -430,12 +431,14 @@ export async function fetchSenhaChamada(): Promise<string> {
   }
 }
 
-export async function salvarSenhaChamada(senha: string): Promise<void> {
+export async function salvarSenhaChamada(senha: string, escolaId?: string): Promise<void> {
   const limpa = senha.trim();
   if (!senhaChamadaValida(limpa)) throw new Error('A senha deve ter exatamente 4 dígitos numéricos (ou ficar em branco para desativar).');
   const client = getSupabaseClient();
+  const alvo = escolaId || getAdminEscolaId();
   if (!client) throw new Error('Supabase não configurado.');
-  const { error } = await client.from('rufus_config').upsert({ chave: 'senha_chamada', valor: limpa }, { onConflict: 'chave' });
+  if (!alvo) throw new Error('Nenhuma escola selecionada.');
+  const { error } = await client.from('rufus_senhas_chamada').upsert({ escola_id: alvo, senha: limpa }, { onConflict: 'escola_id' });
   if (error) throw new Error(`Erro ao salvar senha: ${error.message}`);
 }
 
