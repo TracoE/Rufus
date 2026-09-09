@@ -5,6 +5,7 @@ import {
   fetchAlunosDaTurma,
   salvarOuAtualizarChamada,
   testSupabaseConnection,
+  fetchSenhaChamadaTerminal,
   getLocalDateStr,
   getEscolaId,
   hasEscolaConfigurada,
@@ -17,6 +18,7 @@ import { ModalConfirmacao } from './components/ModalConfirmacao';
 import { SegmentoModal } from './components/SegmentoModal';
 import { TurmasTerminalModal } from './components/TurmasTerminalModal';
 import { EscolaModal } from './components/EscolaModal';
+import { SenhaChamadaModal } from './components/SenhaChamadaModal';
 import { ToastNotification } from './components/ToastNotification';
 import { AlertTriangle } from 'lucide-react';
 
@@ -37,6 +39,12 @@ export default function App() {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
   const [isSegmentoModalOpen, setIsSegmentoModalOpen] = useState<boolean>(false);
   const [isTurmasTerminalModalOpen, setIsTurmasTerminalModalOpen] = useState<boolean>(false);
+
+  // Senha da chamada (4 dígitos, definida no painel admin). Vazio = sem senha.
+  // Solicitada SEMPRE que uma turma for selecionada.
+  const [senhaChamada, setSenhaChamada] = useState<string>('');
+  const [turmaPendente, setTurmaPendente] = useState<TurmaComChamada | null>(null);
+  const [isSenhaModalOpen, setIsSenhaModalOpen] = useState<boolean>(false);
 
   // Primeira execução: o terminal ainda não sabe a qual escola pertence.
   // O seletor abre UMA vez (na instalação); depois o terminal fica travado na
@@ -108,10 +116,11 @@ export default function App() {
     if (!escolaConfigurada) return;
     loadSupabaseStatus();
     loadTurmas();
+    fetchSenhaChamadaTerminal().then(setSenhaChamada);
   }, [escolaConfigurada, loadSupabaseStatus, loadTurmas]);
 
-  // Handle selecting a class from Dashboard (Tela 1 -> Tela 2)
-  const handleSelectTurma = async (turma: TurmaComChamada) => {
+  // Abre a lista de alunos da turma (Tela 1 -> Tela 2)
+  const abrirTurma = async (turma: TurmaComChamada) => {
     setSelectedTurma(turma);
     setLoadingTurmas(true);
 
@@ -126,6 +135,29 @@ export default function App() {
     } finally {
       setLoadingTurmas(false);
     }
+  };
+
+  // Handle selecting a class from Dashboard: exige a senha (quando configurada)
+  // antes de abrir a lista de alunos.
+  const handleSelectTurma = async (turma: TurmaComChamada) => {
+    if (senhaChamada) {
+      setTurmaPendente(turma);
+      setIsSenhaModalOpen(true);
+      return;
+    }
+    await abrirTurma(turma);
+  };
+
+  const handleSenhaSucesso = async () => {
+    setIsSenhaModalOpen(false);
+    const turma = turmaPendente;
+    setTurmaPendente(null);
+    if (turma) await abrirTurma(turma);
+  };
+
+  const handleSenhaCancelar = () => {
+    setIsSenhaModalOpen(false);
+    setTurmaPendente(null);
   };
 
   // Open Confirmation Modal from Tela 2
@@ -290,6 +322,7 @@ export default function App() {
             setEscolaConfigurada(true);
             loadSupabaseStatus();
             loadTurmas();
+            fetchSenhaChamadaTerminal().then(setSenhaChamada);
           }}
         />
       )}
@@ -300,6 +333,16 @@ export default function App() {
         type={toast.type}
         onClose={() => setToast(prev => ({ ...prev, message: null }))}
       />
+      {/* Senha da chamada: exigida sempre que uma turma é selecionada (quando configurada no admin) */}
+      {turmaPendente && (
+        <SenhaChamadaModal
+          isOpen={isSenhaModalOpen}
+          turmaNome={turmaPendente.nome}
+          senhaCorreta={senhaChamada}
+          onSucesso={handleSenhaSucesso}
+          onCancelar={handleSenhaCancelar}
+        />
+      )}
     </div>
   );
 }

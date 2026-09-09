@@ -408,6 +408,38 @@ export async function fetchConfig(): Promise<ConfigRufus> {
 }
 
 // ---------------------------------------------------------------------------
+// Senha da chamada (terminal de sala de aula)
+// 4 dígitos numéricos; vazio = terminal sem senha.
+// ---------------------------------------------------------------------------
+
+export function senhaChamadaValida(senha: string): boolean {
+  return senha === '' || /^\d{4}$/.test(senha);
+}
+
+export async function fetchSenhaChamada(): Promise<string> {
+  const client = getSupabaseClient();
+  if (!client) return '';
+  try {
+    const { data, error } = await client.from('rufus_config').select('valor').eq('chave', 'senha_chamada').limit(1);
+    if (error) return '';
+    const valor = (data as { valor: string }[] | null)?.[0]?.valor || '';
+    return /^\d{4}$/.test(valor.trim()) ? valor.trim() : '';
+  } catch (e) {
+    console.warn('Falha ao ler senha da chamada', e);
+    return '';
+  }
+}
+
+export async function salvarSenhaChamada(senha: string): Promise<void> {
+  const limpa = senha.trim();
+  if (!senhaChamadaValida(limpa)) throw new Error('A senha deve ter exatamente 4 dígitos numéricos (ou ficar em branco para desativar).');
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não configurado.');
+  const { error } = await client.from('rufus_config').upsert({ chave: 'senha_chamada', valor: limpa }, { onConflict: 'chave' });
+  if (error) throw new Error(`Erro ao salvar senha: ${error.message}`);
+}
+
+// ---------------------------------------------------------------------------
 // Dados do Kanban (faltas do mês + justificativas + busca ativa)
 // ---------------------------------------------------------------------------
 

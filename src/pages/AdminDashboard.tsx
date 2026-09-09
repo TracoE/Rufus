@@ -12,7 +12,7 @@ import {
   SessaoAdmin
 } from '../lib/adminClient';
 import { updateTurmaVisibilidade, updateTurmaSegmento, testSupabaseConnection } from '../lib/supabaseClient';
-import { getAdminEscolaId, fetchEscolaNome, logoutAdmin, fetchEscolas, setAdminEscolaId } from '../lib/adminClient';
+import { getAdminEscolaId, fetchEscolaNome, logoutAdmin, fetchEscolas, setAdminEscolaId, fetchSenhaChamada, salvarSenhaChamada } from '../lib/adminClient';
 import { SupabaseConfig } from '../types';
 import { StatusTabs } from '../components/admin/StatusTabs';
 import { DossieAlunoModal } from '../components/admin/DossieAlunoModal';
@@ -61,6 +61,38 @@ export const AdminDashboard: React.FC = () => {
 
   // Toggle visibilidade de turmas no painel de chamadas
   const [salvandoTurma, setSalvandoTurma] = useState<string | null>(null);
+
+  // Senha da chamada (terminal): 4 dígitos; vazio = sem senha
+  const [senhaChamada, setSenhaChamada] = useState('');
+  const [senhaCarregando, setSenhaCarregando] = useState(false);
+  const [senhaSalvando, setSenhaSalvando] = useState(false);
+  const [senhaMsg, setSenhaMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!configAberta) return;
+    setSenhaMsg(null);
+    setSenhaCarregando(true);
+    fetchSenhaChamada().then(s => setSenhaChamada(s)).finally(() => setSenhaCarregando(false));
+  }, [configAberta]);
+
+  const salvarSenha = async () => {
+    const limpa = senhaChamada.trim();
+    if (limpa !== '' && !/^\d{4}$/.test(limpa)) {
+      setSenhaMsg('A senha deve ter exatamente 4 dígitos numéricos (ou ficar em branco para desativar).');
+      return;
+    }
+    setSenhaSalvando(true);
+    setSenhaMsg(null);
+    try {
+      await salvarSenhaChamada(limpa);
+      setSenhaChamada(limpa);
+      setSenhaMsg(limpa ? 'Senha salva. O terminal passa a exigi-la ao abrir cada turma.' : 'Senha removida. O terminal volta a abrir as turmas sem senha.');
+    } catch (err: any) {
+      setSenhaMsg(err.message || 'Erro ao salvar senha. Se o erro persistir, rode o script "Administrativo / Busca Ativa" no SQL Editor do Supabase.');
+    } finally {
+      setSenhaSalvando(false);
+    }
+  };
 
   const toggleVisibilidadeTurma = async (turmaId: string, mostrar: boolean) => {
     setSalvandoTurma(turmaId);
@@ -421,6 +453,37 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             <div className="px-5 py-4">
+              <div className="mb-4 p-3 rounded-xl border border-slate-200 bg-slate-50">
+                <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <KeyRound className="w-4 h-4 text-slate-500" />
+                  Senha da chamada (terminal)
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  4 dígitos numéricos exigidos no painel de chamada sempre que uma turma for selecionada. Em branco = sem senha.
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={senhaChamada}
+                    disabled={senhaCarregando || senhaSalvando}
+                    onChange={e => setSenhaChamada(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    placeholder={senhaCarregando ? 'Carregando...' : 'Ex.: 1234 (vazio = sem senha)'}
+                    className="w-48 px-2.5 py-1.5 rounded-lg border border-slate-300 focus:border-slate-900 text-sm font-bold tracking-[0.3em] text-center outline-none transition-all disabled:opacity-50"
+                  />
+                  <button
+                    onClick={salvarSenha}
+                    disabled={senhaCarregando || senhaSalvando}
+                    className="px-4 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-700 text-white text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {senhaSalvando ? 'Salvando...' : 'Salvar senha'}
+                  </button>
+                </div>
+                {senhaMsg && (
+                  <p className="text-[11px] font-semibold text-slate-600 mt-1.5">{senhaMsg}</p>
+                )}
+              </div>
               <div className="mb-3">
                 <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                   <Eye className="w-4 h-4 text-slate-500" />

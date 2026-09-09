@@ -41,12 +41,15 @@ CREATE TABLE IF NOT EXISTS rufus_config (
 INSERT INTO rufus_config (chave, valor, descricao) VALUES
   ('limite_faltas_atencao', '3', 'Faltas acumuladas no mês que acionam a coluna EM ATENÇÃO'),
   ('limite_faltas_apoia', '5', 'Faltas acumuladas no mês que acionam PRONTO PARA APOIA'),
-  ('limite_tentativas_apoia', '3', 'Tentativas de contato sem sucesso que esgotam a busca ativa')
+  ('limite_tentativas_apoia', '3', 'Tentativas de contato sem sucesso que esgotam a busca ativa'),
+  ('senha_chamada', '', 'Senha de 4 dígitos exigida no terminal ao abrir a chamada (vazio = sem senha)')
 ON CONFLICT (chave) DO NOTHING;
 
 ALTER TABLE rufus_config ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Kiosk leitura rufus_config" ON rufus_config;
 CREATE POLICY "Kiosk leitura rufus_config" ON rufus_config FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Rufus config escrita admin" ON rufus_config;
+CREATE POLICY "Rufus config escrita admin" ON rufus_config FOR ALL USING (is_rufus_admin()) WITH CHECK (is_rufus_admin());
 
 -- 2. LOGIN ADMINISTRATIVO — ACESSO COM CONTA GOOGLE (Supabase Auth, padrão JustificaE)
 -- O Painel Administrativo do RUFUS autentica pela conta Google do administrador da escola,

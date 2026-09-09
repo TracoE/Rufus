@@ -230,6 +230,22 @@ export async function updateTurmaSegmento(turmaId: string, segmento: string): Pr
   }
 }
 
+// Senha de 4 dígitos exigida pelo terminal ao abrir a chamada de uma turma.
+// Leitura pública (rufus_config); retorna '' quando não configurada ou em erro.
+export async function fetchSenhaChamadaTerminal(): Promise<string> {
+  const client = getSupabaseClient();
+  if (!client) return '';
+  try {
+    const { data, error } = await client.from('rufus_config').select('valor').eq('chave', 'senha_chamada').limit(1);
+    if (error) return '';
+    const valor = (data as { valor: string }[] | null)?.[0]?.valor || '';
+    return /^\d{4}$/.test(valor.trim()) ? valor.trim() : '';
+  } catch (err) {
+    console.warn('Falha ao ler senha da chamada no terminal:', err);
+    return '';
+  }
+}
+
 // Check real Supabase connectivity (existing tables + rufus_* tables created)
 export async function testSupabaseConnection(): Promise<SupabaseConfig> {
   const { url, key } = getStoredCredentials();
