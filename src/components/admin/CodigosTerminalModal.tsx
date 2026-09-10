@@ -3,10 +3,11 @@ import {
   fetchCodigos,
   gerarCodigoEscola,
   excluirCodigoEscola,
+  renomearCodigoEscola,
   CodigoEscola,
   fetchEscolas
 } from '../../lib/adminClient';
-import { X, Plus, Copy, Trash2, Loader2, KeyRound, Check, RefreshCw } from 'lucide-react';
+import { X, Plus, Copy, Trash2, Loader2, KeyRound, Check, RefreshCw, Pencil, Save } from 'lucide-react';
 
 interface CodigosTerminalModalProps {
   isOpen: boolean;
@@ -22,6 +23,11 @@ export const CodigosTerminalModal: React.FC<CodigosTerminalModalProps> = ({ isOp
   const [gerando, setGerando] = useState<string | null>(null);
   const [copiado, setCopiado] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState<string | null>(null);
+  // Edição inline do código (personalizar com um mais fácil de lembrar)
+  const [editando, setEditando] = useState<string | null>(null);
+  const [novoCodigo, setNovoCodigo] = useState('');
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null);
 
   const carregar = async () => {
     setLoading(true);
@@ -62,6 +68,29 @@ export const CodigosTerminalModal: React.FC<CodigosTerminalModalProps> = ({ isOp
     }
   };
 
+  const iniciarEdicao = (codigo: string) => {
+    setEditando(codigo);
+    setNovoCodigo(codigo);
+    setErroEdicao(null);
+    setMensagem(null);
+  };
+
+  const salvarEdicao = async (codigoAntigo: string, escolaId: string) => {
+    setSalvandoEdicao(true);
+    setErroEdicao(null);
+    try {
+      const atualizado = await renomearCodigoEscola(codigoAntigo, escolaId, novoCodigo);
+      setCodigos(prev => prev.map(c => (c.codigo === codigoAntigo ? atualizado : c)));
+      setEditando(null);
+      setNovoCodigo('');
+      setMensagem(`Código da escola atualizado para ${atualizado.codigo}.`);
+    } catch (err: any) {
+      setErroEdicao(err.message || 'Erro ao salvar o código.');
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  };
+
   const copiar = async (codigo: string) => {
     try {
       await navigator.clipboard.writeText(codigo);
@@ -86,7 +115,7 @@ export const CodigosTerminalModal: React.FC<CodigosTerminalModalProps> = ({ isOp
             </div>
             <div>
               <h3 className="text-lg font-black tracking-tight">Códigos dos Terminais</h3>
-              <p className="text-xs text-slate-400">Gere o código de instalação por escola</p>
+              <p className="text-xs text-slate-400">Automático ou personalizado — fácil de lembrar por escola</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800 transition-colors cursor-pointer">
@@ -97,7 +126,8 @@ export const CodigosTerminalModal: React.FC<CodigosTerminalModalProps> = ({ isOp
         <div className="p-6 overflow-y-auto space-y-4 flex-1">
           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 leading-relaxed">
             O terminal <strong>não lista as escolas</strong>: na instalação ele pede apenas o código. Entregue o código
-            de cada escola para a pessoa que instalar o aparelho (ex.: <code className="font-mono">RUFUS-XXXX-XXXX</code>).
+            de cada escola para a pessoa que instalar o aparelho. O app gera um código automático, mas você pode
+            <strong> editar para um mais simples</strong> da escola lembrar (ex.: <code className="font-mono">ESCOLA-1</code>).
           </div>
 
           {mensagem && (
@@ -141,25 +171,69 @@ export const CodigosTerminalModal: React.FC<CodigosTerminalModalProps> = ({ isOp
                       ) : (
                         lista.map(c => (
                           <div key={c.codigo} className="flex items-center gap-2 flex-wrap">
-                            <code className="px-3 py-2 rounded-lg bg-slate-900 text-emerald-300 font-mono text-sm font-bold tracking-wider">
-                              {c.codigo}
-                            </code>
-                            <button
-                              onClick={() => copiar(c.codigo)}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer"
-                              title="Copiar código"
-                            >
-                              {copiado === c.codigo ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                              {copiado === c.codigo ? 'Copiado!' : 'Copiar'}
-                            </button>
-                            <button
-                              onClick={() => excluir(c.codigo)}
-                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 text-xs font-bold transition-all cursor-pointer"
-                              title="Excluir código"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              Excluir
-                            </button>
+                            {editando === c.codigo ? (
+                              <div className="flex items-center gap-2 flex-wrap flex-1">
+                                <input
+                                  type="text"
+                                  value={novoCodigo}
+                                  disabled={salvandoEdicao}
+                                  onChange={e => setNovoCodigo(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20))}
+                                  onKeyDown={e => { if (e.key === 'Enter') salvarEdicao(c.codigo, c.escola_id); }}
+                                  placeholder="Ex.: ESCOLA-1"
+                                  title="4 a 20 caracteres: letras, números ou hífen"
+                                  className="px-3 py-2 rounded-lg border-2 border-slate-900 font-mono text-sm font-bold tracking-wider uppercase outline-none w-44 disabled:opacity-50"
+                                />
+                                <button
+                                  onClick={() => salvarEdicao(c.codigo, c.escola_id)}
+                                  disabled={salvandoEdicao}
+                                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-700 text-white text-xs font-bold transition-all cursor-pointer disabled:opacity-60"
+                                  title="Salvar novo código"
+                                >
+                                  <Save className="w-3.5 h-3.5" />
+                                  {salvandoEdicao ? 'Salvando...' : 'Salvar'}
+                                </button>
+                                <button
+                                  onClick={() => { setEditando(null); setErroEdicao(null); }}
+                                  disabled={salvandoEdicao}
+                                  className="px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 text-xs font-bold transition-all cursor-pointer disabled:opacity-60"
+                                >
+                                  Cancelar
+                                </button>
+                                {erroEdicao && (
+                                  <p className="w-full text-[11px] font-bold text-red-600">{erroEdicao}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                <code className="px-3 py-2 rounded-lg bg-slate-900 text-emerald-300 font-mono text-sm font-bold tracking-wider">
+                                  {c.codigo}
+                                </code>
+                                <button
+                                  onClick={() => copiar(c.codigo)}
+                                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                                  title="Copiar código"
+                                >
+                                  {copiado === c.codigo ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                  {copiado === c.codigo ? 'Copiado!' : 'Copiar'}
+                                </button>
+                                <button
+                                  onClick={() => iniciarEdicao(c.codigo)}
+                                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-bold transition-all cursor-pointer"
+                                  title="Personalizar código (mais fácil de lembrar)"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => excluir(c.codigo)}
+                                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 text-xs font-bold transition-all cursor-pointer"
+                                  title="Excluir código"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Excluir
+                                </button>
+                              </>
+                            )}
                             <span className="text-[11px] text-slate-400 ml-auto">
                               Criado {new Date(c.criado_em).toLocaleDateString('pt-BR')}
                               {c.criado_por ? ` por ${c.criado_por}` : ''}

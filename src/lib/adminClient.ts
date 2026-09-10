@@ -199,6 +199,50 @@ export async function excluirCodigoEscola(codigo: string): Promise<boolean> {
   }
 }
 
+// Personaliza o código de uma escola (troca o automático por um mais fácil de
+// lembrar). Implementado como inserir-novo + excluir-antigo para reaproveitar
+// as políticas já existentes (insert/delete do admin), sem migração de SQL.
+export function normalizarCodigoTerminal(codigo: string): string {
+  return codigo.trim().toUpperCase();
+}
+
+export function codigoTerminalValido(codigo: string): boolean {
+  return /^[A-Z0-9-]{4,20}$/.test(codigo);
+}
+
+export async function renomearCodigoEscola(codigoAntigo: string, escolaId: string, codigoNovo: string): Promise<CodigoEscola> {
+  const novo = normalizarCodigoTerminal(codigoNovo);
+  if (!codigoTerminalValido(novo)) {
+    throw new Error('Use 4 a 20 caracteres com letras, números ou hífen (ex.: ESCOLA-1).');
+  }
+  if (novo === codigoAntigo) {
+    throw new Error('O novo código é igual ao atual.');
+  }
+  const client = getSupabaseClient();
+  if (!client) throw new Error('Supabase não configurado.');
+
+  const { data: existente } = await client.from('rufus_codigos_acesso').select('codigo').eq('codigo', novo).limit(1);
+  if ((existente as { codigo: string }[] | null)?.length) {
+    throw new Error('Este código já está em uso por outra escola.');
+  }
+
+  const criadoPor = getAdminSession()?.email;
+  const { error: errInsert } = await client.from('rufus_codigos_acesso').insert({
+    codigo: novo,
+    escola_id: escolaId,
+    criado_por: criadoPor
+  });
+  if (errInsert) throw new Error(`Erro ao salvar novo código: ${errInsert.message}`);
+
+  const { error: errDelete } = await client.from('rufus_codigos_acesso').delete().eq('codigo', codigoAntigo);
+  if (errDelete) {
+    await client.from('rufus_codigos_acesso').delete().eq('codigo', novo);
+    throw new Error(`Erro ao substituir o código antigo: ${errDelete.message}`);
+  }
+
+  return { codigo: novo, escola_id: escolaId, criado_em: new Date().toISOString(), criado_por: criadoPor };
+}
+
 // Resolve o código digitado no instalador do terminal → escola exata (sem login).
 export async function buscarEscolaPorCodigo(codigo: string): Promise<{ escola_id: string; nome: string } | null> {
   const client = getSupabaseClient();
