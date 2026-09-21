@@ -535,16 +535,58 @@ export async function fetchAlunosDaTurma(turmaId: string, dataChamadaDateStr?: s
 
   if (client) {
     try {
-      // 1. Fetch alunos da turma (tabela existente)
-      const { data: alunosDb, error: errA } = await client
-        .from('alunos')
-        .select('*')
-        .eq('turma_id', turmaId)
-        .eq('escola_id', escolaId)
-        .order('nome', { ascending: true });
-      if (errA) throw errA;
+      // 1. Fetch alunos da turma (tabela existente do JustificaE).
+      // Tenta com filtros completos primeiro; se a query falhar (ex.: coluna
+      // escola_id inexistente ou problema de RLS), repete sem filtro de escola
+      // e sem .order() até obter sucesso.
+      let alunosDb: Aluno[] | null = null;
+
+      const attemptQueries: (() => Promise<Aluno[] | null>)[] = [
+        // Tentativa 1: filtros completos + order
+        async () => {
+          const { data, error } = await client
+            .from('alunos')
+            .select('*')
+            .eq('turma_id', turmaId)
+            .eq('escola_id', escolaId)
+            .order('nome', { ascending: true });
+          if (error) throw error;
+          return data as Aluno[];
+        },
+        // Tentativa 2: sem filtro escola_id
+        async () => {
+          const { data, error } = await client
+            .from('alunos')
+            .select('*')
+            .eq('turma_id', turmaId)
+            .order('nome', { ascending: true });
+          if (error) throw error;
+          return data as Aluno[];
+        },
+        // Tentativa 3: sem order
+        async () => {
+          const { data, error } = await client
+            .from('alunos')
+            .select('*')
+            .eq('turma_id', turmaId);
+          if (error) throw error;
+          return (data as Aluno[] | null);
+        }
+      ];
+
+      for (const attempt of attemptQueries) {
+        try {
+          alunosDb = await attempt();
+          break;
+        } catch (queryErr) {
+          console.warn('Tentativa de busca de alunos falhou:', (queryErr as Error).message);
+        }
+      }
 
       if (alunosDb && alunosDb.length > 0) {
+        // Ordena em JS caso a query tenha retornado sem .order()
+        const sorted = [...alunosDb].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
         // 2. Fetch chamada rufus de hoje se existir
         const { data: chamadasDb } = await client
           .from('rufus_chamadas')
@@ -565,7 +607,7 @@ export async function fetchAlunosDaTurma(turmaId: string, dataChamadaDateStr?: s
           (faltasDb || []).forEach(f => faltasSet.add(f.aluno_id));
         }
 
-        const alunosComFalta: AlunoComFalta[] = alunosDb.map((a: Aluno) => ({
+        const alunosComFalta: AlunoComFalta[] = sorted.map(a => ({
           id: a.id,
           turma_id: a.turma_id,
           nome: a.nome,
