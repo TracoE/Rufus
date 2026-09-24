@@ -14,7 +14,6 @@ import {
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { GridFaltantes } from './components/GridFaltantes';
-import { ModalConfirmacao } from './components/ModalConfirmacao';
 import { SegmentoModal } from './components/SegmentoModal';
 import { TurmasTerminalModal } from './components/TurmasTerminalModal';
 import { EscolaModal } from './components/EscolaModal';
@@ -36,7 +35,6 @@ export default function App() {
   const [isEdicao, setIsEdicao] = useState<boolean>(false);
 
   // Modal States
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState<boolean>(false);
   const [isSegmentoModalOpen, setIsSegmentoModalOpen] = useState<boolean>(false);
   const [isTurmasTerminalModalOpen, setIsTurmasTerminalModalOpen] = useState<boolean>(false);
 
@@ -51,10 +49,6 @@ export default function App() {
   // escola salva. Trocar de escola é feito pelo painel admin (SupabaseModal).
   const [escolaConfigurada, setEscolaConfigurada] = useState<boolean>(() => hasEscolaConfigurada());
   const escolaId = getEscolaId();
-
-  // Faltantes for confirmation modal
-  const [faltantesParaConfirmar, setFaltantesParaConfirmar] = useState<AlunoComFalta[]>([]);
-  const [totalAlunosTurma, setTotalAlunosTurma] = useState<number>(0);
 
   // Supabase Config State
   const [supabaseConfig, setSupabaseConfig] = useState<SupabaseConfig>({
@@ -160,13 +154,6 @@ export default function App() {
     setTurmaPendente(null);
   };
 
-  // Open Confirmation Modal from Tela 2
-  const handleOpenConfirmModal = (faltantes: AlunoComFalta[], total: number) => {
-    setFaltantesParaConfirmar(faltantes);
-    setTotalAlunosTurma(total);
-    setIsConfirmModalOpen(true);
-  };
-
   // Marcar turma como 100% de presença (zero faltas) para sair de "pendente"
   const handleMarcarTodosPresentes = async () => {
     if (!selectedTurma) return;
@@ -188,17 +175,16 @@ export default function App() {
     }
   };
 
-  // Perform Chamada Persistence in Supabase / Fallback (UPSERT)
-  const handleConfirmSalvarChamada = async () => {
+  // Salva a chamada direto (sem modal de confirmação) — Tela 2 -> Supabase
+  const handleSalvarDireto = async (faltantes: AlunoComFalta[]) => {
     if (!selectedTurma) return;
 
-    const faltantesIds = faltantesParaConfirmar.map(a => a.id);
+    const faltantesIds = faltantes.map(a => a.id);
 
     try {
       const res = await salvarOuAtualizarChamada(selectedTurma.id, dataChamadaStr, faltantesIds);
 
       if (res.success) {
-        setIsConfirmModalOpen(false);
         setToast({
           message: `Chamada da turma ${selectedTurma.nome} salva com sucesso! (${faltantesIds.length} faltantes)`,
           type: 'success'
@@ -270,25 +256,11 @@ export default function App() {
           alunosInitial={alunosTurma}
           dataAtualFormatada={dataAtualFormatada}
           onBackToDashboard={() => setCurrentView('dashboard')}
-          onOpenConfirmModal={handleOpenConfirmModal}
+          onSalvarDireto={handleSalvarDireto}
           onMarcarTodosPresentes={handleMarcarTodosPresentes}
           isEdicao={isEdicao}
         />
       ) : null}
-
-      {/* Confirmation Modal */}
-      {selectedTurma && (
-        <ModalConfirmacao
-          isOpen={isConfirmModalOpen}
-          turma={selectedTurma}
-          faltantes={faltantesParaConfirmar}
-          totalAlunos={totalAlunosTurma}
-          dataAtualFormatada={dataAtualFormatada}
-          onClose={() => setIsConfirmModalOpen(false)}
-          onConfirm={handleConfirmSalvarChamada}
-          isEdicao={isEdicao}
-        />
-      )}
         </>
       )}
 

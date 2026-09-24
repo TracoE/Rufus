@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { AlunoComFalta, TurmaComChamada } from '../types';
-import { ArrowLeft, Check, CheckCircle2, ShieldAlert, Calendar, AlertCircle, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Check, CheckCircle2, ShieldAlert, Calendar, AlertCircle, CheckCheck, Loader2 } from 'lucide-react';
 
 interface GridFaltantesProps {
   turma: TurmaComChamada;
   alunosInitial: AlunoComFalta[];
   dataAtualFormatada: string;
   onBackToDashboard: () => void;
-  onOpenConfirmModal: (faltantes: AlunoComFalta[], totalAlunos: number) => void;
+  onSalvarDireto: (faltantes: AlunoComFalta[]) => Promise<void>;
   onMarcarTodosPresentes: () => void;
   isEdicao: boolean;
 }
@@ -62,11 +62,12 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
   alunosInitial,
   dataAtualFormatada,
   onBackToDashboard,
-  onOpenConfirmModal,
+  onSalvarDireto,
   onMarcarTodosPresentes,
   isEdicao
 }) => {
   const [alunosState, setAlunosState] = useState<AlunoComFalta[]>(sortAlfabetica(alunosInitial));
+  const [saving, setSaving] = useState<boolean>(false);
 
   // Sync state if initial changes
   useEffect(() => {
@@ -223,11 +224,29 @@ export const GridFaltantes: React.FC<GridFaltantesProps> = ({
 
           {temAlteracoes && (
             <button
-              onClick={() => onOpenConfirmModal(faltantes, totalAlunos)}
-              className="flex items-center gap-2 md:gap-3 px-4 md:px-8 py-2.5 md:py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-sm md:text-lg transition-all cursor-pointer shadow-lg whitespace-nowrap"
+              onClick={async () => {
+                if (saving) return;
+                setSaving(true);
+                try {
+                  await onSalvarDireto(faltantes);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+              className="flex items-center gap-2 md:gap-3 px-4 md:px-8 py-2.5 md:py-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-extrabold text-sm md:text-lg transition-all cursor-pointer shadow-lg whitespace-nowrap disabled:opacity-70 disabled:cursor-wait"
             >
-              <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
-              <span>[ Salvar ]</span>
+              {saving ? (
+                <>
+                  <Loader2 className="w-5 h-5 md:w-6 md:h-6 animate-spin" />
+                  <span>[ Salvando... ]</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5 md:w-6 md:h-6" />
+                  <span>[ Salvar ]</span>
+                </>
+              )}
             </button>
           )}
         </div>
